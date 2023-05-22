@@ -59,8 +59,11 @@ module.exports = function (grunt) {
           '--out-dir=out-wpt/',
           'src/',
           '--only=src/common/framework/',
+          '--only=src/common/internal/',
+          '--only=src/common/util/',
           '--only=src/common/runtime/helper/',
           '--only=src/common/runtime/wpt.ts',
+          '--only=src/external',
           '--only=src/webgpu/',
           // These files will be generated, instead of compiled from TypeScript.
           '--ignore=src/common/internal/version.ts',
