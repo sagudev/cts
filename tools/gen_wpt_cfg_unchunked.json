@@ -1,5 +1,10 @@
 {
   "suite": "webgpu",
   "out": "../out-wpt/cts.https.html",
-  "template": "../src/common/templates/cts.https.html"
+  "template": "../src/common/templates/cts.https.html",
+  "noLongPathAssert": true,
+  "expectations": {
+    "file": "../fitted.txt",
+    "prefix": "cts.https.html"
+  }
 }

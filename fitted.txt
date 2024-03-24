@@ -1,0 +1,1 @@
+cts.https.html?q=webgpu:api,operation,adapter,requestDevice:features,known:feature="texture-compression-astc"
