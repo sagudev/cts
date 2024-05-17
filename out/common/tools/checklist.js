@@ -100,11 +100,11 @@ matchQueries)
 
   if (donenessMismatches.length) {
     throw new StacklessError(
-    'Found done/todo mismatches:\n  ' +
-    donenessMismatches.
-    map((q) => `marked ${q.done ? 'DONE, but is TODO' : 'TODO, but is DONE'}: ${q.query}`).
-    join('\n  '));
-
+      'Found done/todo mismatches:\n  ' +
+      donenessMismatches.
+      map((q) => `marked ${q.done ? 'DONE, but is TODO' : 'TODO, but is DONE'}: ${q.query}`).
+      join('\n  ')
+    );
   }
 
   return subtreeCount;
@@ -122,11 +122,9 @@ matchQueries)
     checkForOverlappingQueries(queriesInSuite);
     const suiteQuery = new TestQueryMultiFile(suite, []);
     console.log(`  Loading tree ${suiteQuery}...`);
-    const tree = await loadTreeForQuery(
-    loader,
-    suiteQuery,
-    queriesInSuite.map((q) => q.query));
-
+    const tree = await loadTreeForQuery(loader, suiteQuery, {
+      subqueriesToExpand: queriesInSuite.map((q) => q.query)
+    });
     console.log('  Found no invalid queries in the checklist. Checking for unmatched tests...');
     const subtreeCount = checkForUnmatchedSubtreesAndDoneness(tree, queriesInSuite);
     console.log(`  No unmatched tests or done/todo mismatches among ${subtreeCount} subtrees!`);

@@ -2,7 +2,8 @@
 * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
 **/import { depthStencilFormatCopyableAspects,
 
-kTextureFormatInfo } from
+  kTextureFormatInfo,
+  isCompressedTextureFormat } from
 '../../../format_info.js';
 import { align } from '../../../util/math.js';
 
@@ -61,6 +62,11 @@ export class ImageCopyTest extends ValidationTest {
           break;
         }
       case 'CopyT2B':{
+          if (this.isCompatibility && isCompressedTextureFormat(textureCopyView.texture.format)) {
+            this.skip(
+              'copyTextureToBuffer is not supported for compressed texture formats in compatibility mode.'
+            );
+          }
           const buffer = this.device.createBuffer({
             size: dataSize,
             usage: GPUBufferUsage.COPY_DST
@@ -82,8 +88,8 @@ export class ImageCopyTest extends ValidationTest {
           }
 
           break;
-        }}
-
+        }
+    }
   }
 
   /**
@@ -159,6 +165,11 @@ export class ImageCopyTest extends ValidationTest {
           break;
         }
       case 'CopyT2B':{
+          if (this.isCompatibility && isCompressedTextureFormat(texture.format)) {
+            this.skip(
+              'copyTextureToBuffer is not supported for compressed texture formats in compatibility mode.'
+            );
+          }
           const { encoder, validateFinish, validateFinishAndSubmit } = this.createEncoder('non-pass');
           encoder.copyTextureToBuffer({ texture }, { buffer, ...textureDataLayout }, size);
 
@@ -171,8 +182,8 @@ export class ImageCopyTest extends ValidationTest {
           }
 
           break;
-        }}
-
+        }
+    }
   }
 }
 
@@ -229,8 +240,8 @@ export function texelBlockAlignmentTestExpanderForValueToCoordinate({
 
     case 'z':
     case 'depthOrArrayLayers':
-      return valuesToTestDivisibilityBy(1);}
-
+      return valuesToTestDivisibilityBy(1);
+  }
 }
 
 // This is a helper function used for filtering test parameters
@@ -238,15 +249,15 @@ export function formatCopyableWithMethod({ format, method }) {
   const info = kTextureFormatInfo[format];
   if (info.depth || info.stencil) {
     const supportedAspects = depthStencilFormatCopyableAspects(
-    method,
-    format);
-
+      method,
+      format
+    );
     return supportedAspects.length > 0;
   }
   if (method === 'CopyT2B') {
-    return info.copySrc;
+    return info.color.copySrc;
   } else {
-    return info.copyDst;
+    return info.color.copyDst;
   }
 }
 
@@ -258,9 +269,9 @@ export function getACopyableAspectWithMethod({
   const info = kTextureFormatInfo[format];
   if (info.depth || info.stencil) {
     const supportedAspects = depthStencilFormatCopyableAspects(
-    method,
-    format);
-
+      method,
+      format
+    );
     return supportedAspects[0];
   }
   return 'all';

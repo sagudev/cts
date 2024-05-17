@@ -4,16 +4,23 @@ This test dedicatedly tests validation of GPUFragmentState of createRenderPipeli
 
 import { makeTestGroup } from '../../../../common/framework/test_group.js';
 import { range } from '../../../../common/util/util.js';
-import { kBlendFactors, kBlendOperations, kMaxColorAttachments } from '../../../capability_info.js';
 import {
-  kTextureFormats,
+  kBlendFactors,
+  kBlendOperations,
+  kMaxColorAttachmentsToTest,
+} from '../../../capability_info.js';
+import {
+  kAllTextureFormats,
   kRenderableColorTextureFormats,
   kTextureFormatInfo,
+  computeBytesPerSampleFromFormats,
+  kColorTextureFormats,
 } from '../../../format_info.js';
 import {
   getFragmentShaderCodeWithOutput,
   getPlainTypeInfo,
   kDefaultFragmentShaderCode,
+  kDefaultVertexShaderCode,
 } from '../../../util/shader.js';
 import { kTexelRepresentationInfo } from '../../../util/texture/texel_data.js';
 
@@ -44,12 +51,64 @@ g.test('color_target_exists')
     t.doCreateRenderPipelineTest(isAsync, false, badDescriptor);
   });
 
-g.test('targets_format_renderable')
-  .desc(`Tests that color target state format must have RENDER_ATTACHMENT capability.`)
-  .params(u => u.combine('isAsync', [false, true]).combine('format', kTextureFormats))
+g.test('targets_format_is_color_format')
+  .desc(
+    `Tests that color target state format must be a color format, regardless of how the
+    fragment shader writes to it.`
+  )
+  .params(u =>
+    u
+      // Test all non-color texture formats, plus 'rgba8unorm' as a control case.
+      .combine('format', kAllTextureFormats)
+      .filter(({ format }) => {
+        return format === 'rgba8unorm' || !kTextureFormatInfo[format].color;
+      })
+      .combine('isAsync', [false, true])
+      .beginSubcases()
+      .combine('fragOutType', ['f32', 'u32', 'i32'] as const)
+  )
   .beforeAllSubcases(t => {
     const { format } = t.params;
     const info = kTextureFormatInfo[format];
+    t.skipIfTextureFormatNotSupported(t.params.format);
+    t.selectDeviceOrSkipTestCase(info.feature);
+  })
+  .fn(t => {
+    const { isAsync, format, fragOutType } = t.params;
+
+    const fragmentShaderCode = getFragmentShaderCodeWithOutput([
+      { values, plainType: fragOutType, componentCount: 4 },
+    ]);
+
+    const success = format === 'rgba8unorm' && fragOutType === 'f32';
+    t.doCreateRenderPipelineTest(isAsync, success, {
+      vertex: {
+        module: t.device.createShaderModule({ code: kDefaultVertexShaderCode }),
+        entryPoint: 'main',
+      },
+      fragment: {
+        module: t.device.createShaderModule({ code: fragmentShaderCode }),
+        entryPoint: 'main',
+        targets: [{ format }],
+      },
+      layout: 'auto',
+    });
+  });
+
+g.test('targets_format_renderable')
+  .desc(
+    `Tests that color target state format must have RENDER_ATTACHMENT capability
+    (tests only color formats).`
+  )
+  .params(u =>
+    u //
+      .combine('isAsync', [false, true])
+      .combine('format', kColorTextureFormats)
+  )
+  .beforeAllSubcases(t => {
+    const { format } = t.params;
+    const info = kTextureFormatInfo[format];
+    t.skipIfTextureFormatNotSupported(t.params.format);
     t.selectDeviceOrSkipTestCase(info.feature);
   })
   .fn(t => {
@@ -65,16 +124,27 @@ g.test('limits,maxColorAttachments')
   .desc(
     `Tests that color state targets length must not be larger than device.limits.maxColorAttachments.`
   )
-  .params(u => u.combine('isAsync', [false, true]).combine('targetsLength', [8, 9]))
+  .params(u =>
+    u.combine('isAsync', [false, true]).combine('targetsLengthVariant', [
+      { mult: 1, add: 0 },
+      { mult: 1, add: 1 },
+    ])
+  )
   .fn(t => {
-    const { isAsync, targetsLength } = t.params;
+    const { isAsync, targetsLengthVariant } = t.params;
+    const targetsLength = t.makeLimitVariant('maxColorAttachments', targetsLengthVariant);
 
     const descriptor = t.getDescriptor({
-      targets: range(targetsLength, i => {
-        // Set writeMask to 0 for attachments without fragment output
-        return { format: 'rg8unorm', writeMask: i === 0 ? 0xf : 0 };
+      targets: range(targetsLength, _i => {
+        return { format: 'rg8unorm', writeMask: 0 };
       }),
       fragmentShaderCode: kDefaultFragmentShaderCode,
+      // add a depth stencil so that we can set writeMask to 0 for all color attachments
+      depthStencil: {
+        format: 'depth24plus',
+        depthWriteEnabled: true,
+        depthCompare: 'always',
+      },
     });
 
     t.doCreateRenderPipelineTest(
@@ -97,13 +167,21 @@ g.test('limits,maxColorAttachmentBytesPerSample,aligned')
       .beginSubcases()
       .combine(
         'attachmentCount',
-        range(kMaxColorAttachments, i => i + 1)
+        range(kMaxColorAttachmentsToTest, i => i + 1)
       )
       .combine('isAsync', [false, true])
   )
+  .beforeAllSubcases(t => {
+    t.skipIfTextureFormatNotSupported(t.params.format);
+  })
   .fn(t => {
     const { format, attachmentCount, isAsync } = t.params;
     const info = kTextureFormatInfo[format];
+
+    t.skipIf(
+      attachmentCount > t.device.limits.maxColorAttachments,
+      `attachmentCount: ${attachmentCount} > maxColorAttachments: ${t.device.limits.maxColorAttachments}`
+    );
 
     const descriptor = t.getDescriptor({
       targets: range(attachmentCount, () => {
@@ -133,31 +211,25 @@ g.test('limits,maxColorAttachmentBytesPerSample,unaligned')
         // become 4 and 4+4+8+16+1 > 32. Re-ordering this so the R8Unorm's are at the end, however
         // is allowed: 4+8+16+1+1 < 32.
         {
-          formats: [
-            'r8unorm',
-            'r32float',
-            'rgba8unorm',
-            'rgba32float',
-            'r8unorm',
-          ] as GPUTextureFormat[],
-          _success: false,
+          formats: ['r8unorm', 'r32float', 'rgba8unorm', 'rgba32float', 'r8unorm'],
         },
         {
-          formats: [
-            'r32float',
-            'rgba8unorm',
-            'rgba32float',
-            'r8unorm',
-            'r8unorm',
-          ] as GPUTextureFormat[],
-          _success: true,
+          formats: ['r32float', 'rgba8unorm', 'rgba32float', 'r8unorm', 'r8unorm'],
         },
-      ])
+      ] as const)
       .beginSubcases()
       .combine('isAsync', [false, true])
   )
   .fn(t => {
-    const { formats, _success, isAsync } = t.params;
+    const { formats, isAsync } = t.params;
+
+    t.skipIf(
+      formats.length > t.device.limits.maxColorAttachments,
+      `numColorAttachments: ${formats.length} > maxColorAttachments: ${t.device.limits.maxColorAttachments}`
+    );
+
+    const success =
+      computeBytesPerSampleFromFormats(formats) <= t.device.limits.maxColorAttachmentBytesPerSample;
 
     const descriptor = t.getDescriptor({
       targets: formats.map(f => {
@@ -165,7 +237,7 @@ g.test('limits,maxColorAttachmentBytesPerSample,unaligned')
       }),
     });
 
-    t.doCreateRenderPipelineTest(isAsync, _success, descriptor);
+    t.doCreateRenderPipelineTest(isAsync, success, descriptor);
   });
 
 g.test('targets_format_filterable')
@@ -185,6 +257,7 @@ g.test('targets_format_filterable')
   .beforeAllSubcases(t => {
     const { format } = t.params;
     const info = kTextureFormatInfo[format];
+    t.skipIfTextureFormatNotSupported(format);
     t.selectDeviceOrSkipTestCase(info.feature);
   })
   .fn(t => {

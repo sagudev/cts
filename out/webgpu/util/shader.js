@@ -11,6 +11,27 @@ export const kDefaultFragmentShaderCode = `
   return vec4<f32>(1.0, 1.0, 1.0, 1.0);
 }`;
 
+// MAINTENANCE_TODO(#3344): deduplicate fullscreen quad shader code.
+export const kFullscreenQuadVertexShaderCode = `
+  struct VertexOutput {
+    @builtin(position) Position : vec4<f32>
+  };
+
+  @vertex fn main(@builtin(vertex_index) VertexIndex : u32) -> VertexOutput {
+    var pos = array<vec2<f32>, 6>(
+        vec2<f32>( 1.0,  1.0),
+        vec2<f32>( 1.0, -1.0),
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>( 1.0,  1.0),
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>(-1.0,  1.0));
+
+    var output : VertexOutput;
+    output.Position = vec4<f32>(pos[VertexIndex], 0.0, 1.0);
+    return output;
+  }
+`;
+
 const kPlainTypeInfo = {
   i32: {
     suffix: '',
@@ -42,8 +63,8 @@ export function getPlainTypeInfo(sampleType) {
     case 'depth':
       return 'f32';
     default:
-      unreachable();}
-
+      unreachable();
+  }
 }
 
 /**
@@ -137,12 +158,12 @@ fragDepth = null)
       case 4:
         outputType = `vec4<${plainType}>`;
         resultStrings.push(
-        `${outputType}(${v[0]}${suffix}, ${v[1]}${suffix}, ${v[2]}${suffix}, ${v[3]}${suffix})`);
-
+          `${outputType}(${v[0]}${suffix}, ${v[1]}${suffix}, ${v[2]}${suffix}, ${v[3]}${suffix})`
+        );
         break;
       default:
-        unreachable();}
-
+        unreachable();
+    }
 
     outputStructString += `@location(${i}) o${i} : ${outputType},\n`;
   }
@@ -156,6 +177,8 @@ fragDepth = null)
         return Outputs(${resultStrings.join(',')});
     }`;
 }
+
+export const kValidShaderStages = ['compute', 'vertex', 'fragment'];
 
 
 
@@ -190,8 +213,8 @@ export function getShaderWithEntryPoint(shaderStage, entryPoint) {
     default:{
         code = '';
         break;
-      }}
-
+      }
+  }
   return code;
 }
 //# sourceMappingURL=shader.js.map

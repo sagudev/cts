@@ -13,7 +13,6 @@ import { GPUConst } from '../../constants.js';
 import {
   kAllTextureFormats,
   kFeaturesForFormats,
-  kTextureFormats,
   filterFormatsByFeature,
   viewCompatible,
 } from '../../format_info.js';
@@ -158,7 +157,7 @@ g.test('usage')
     u //
       .combine('canvasType', kAllCanvasTypes)
       .beginSubcases()
-      .expand('usage', p => {
+      .expand('usage', () => {
         const usageSet = new Set<number>();
         for (const usage0 of kTextureUsages) {
           for (const usage1 of kTextureUsages) {
@@ -387,7 +386,7 @@ g.test('viewFormats')
       .combine('viewFormatFeature', kFeaturesForFormats)
       .beginSubcases()
       .expand('viewFormat', ({ viewFormatFeature }) =>
-        filterFormatsByFeature(viewFormatFeature, kTextureFormats)
+        filterFormatsByFeature(viewFormatFeature, kAllTextureFormats)
       )
   )
   .beforeAllSubcases(t => {
@@ -395,11 +394,14 @@ g.test('viewFormats')
   })
   .fn(t => {
     const { canvasType, format, viewFormat } = t.params;
+
+    t.skipIfTextureFormatNotSupported(viewFormat);
+
     const canvas = createCanvas(t, canvasType, 1, 1);
     const ctx = canvas.getContext('webgpu');
     assert(ctx instanceof GPUCanvasContext, 'Failed to get WebGPU context from canvas');
 
-    const compatible = viewCompatible(format, viewFormat);
+    const compatible = viewCompatible(t.isCompatibility, format, viewFormat);
 
     // Test configure() produces an error if the formats aren't compatible.
     t.expectValidationError(() => {

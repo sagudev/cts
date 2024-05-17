@@ -11,11 +11,10 @@ import { assert } from '../../../common/util/util.js';
 import { kCanvasTextureFormats, kTextureUsages } from '../../capability_info.js';
 import { GPUConst } from '../../constants.js';
 import {
-kAllTextureFormats,
-kFeaturesForFormats,
-kTextureFormats,
-filterFormatsByFeature,
-viewCompatible } from
+  kAllTextureFormats,
+  kFeaturesForFormats,
+  filterFormatsByFeature,
+  viewCompatible } from
 '../../format_info.js';
 import { GPUTest } from '../../gpu_test.js';
 import { kAllCanvasTypes, createCanvas } from '../../util/create_elements.js';
@@ -24,14 +23,14 @@ export const g = makeTestGroup(GPUTest);
 
 g.test('defaults').
 desc(
-`
+  `
     Ensure that the defaults for GPUCanvasConfiguration are correct.
-    `).
-
+    `
+).
 params((u) =>
 u //
-.combine('canvasType', kAllCanvasTypes)).
-
+.combine('canvasType', kAllCanvasTypes)
+).
 fn((t) => {
   const { canvasType } = t.params;
   const canvas = createCanvas(t, canvasType, 2, 2);
@@ -56,14 +55,14 @@ fn((t) => {
 
 g.test('device').
 desc(
-`
+  `
     Ensure that configure reacts appropriately to various device states.
-    `).
-
+    `
+).
 params((u) =>
 u //
-.combine('canvasType', kAllCanvasTypes)).
-
+.combine('canvasType', kAllCanvasTypes)
+).
 fn((t) => {
   const { canvasType } = t.params;
   const canvas = createCanvas(t, canvasType, 2, 2);
@@ -107,15 +106,15 @@ fn((t) => {
 
 g.test('format').
 desc(
-`
+  `
     Ensure that only valid texture formats are allowed when calling configure.
-    `).
-
+    `
+).
 params((u) =>
 u //
 .combine('canvasType', kAllCanvasTypes).
-combine('format', kAllTextureFormats)).
-
+combine('format', kAllTextureFormats)
+).
 beforeAllSubcases((t) => {
   t.selectDeviceForTextureFormatOrSkipTestCase(t.params.format);
 }).
@@ -150,15 +149,15 @@ fn((t) => {
 
 g.test('usage').
 desc(
-`
+  `
     Ensure that getCurrentTexture returns a texture with the configured usages.
-    `).
-
+    `
+).
 params((u) =>
 u //
 .combine('canvasType', kAllCanvasTypes).
 beginSubcases().
-expand('usage', (p) => {
+expand('usage', () => {
   const usageSet = new Set();
   for (const usage0 of kTextureUsages) {
     for (const usage1 of kTextureUsages) {
@@ -166,8 +165,8 @@ expand('usage', (p) => {
     }
   }
   return usageSet;
-})).
-
+})
+).
 fn((t) => {
   const { canvasType, usage } = t.params;
   const canvas = createCanvas(t, canvasType, 2, 2);
@@ -268,16 +267,16 @@ fn((t) => {
 
 g.test('alpha_mode').
 desc(
-`
+  `
     Ensure that all valid alphaMode values are allowed when calling configure.
-    `).
-
+    `
+).
 params((u) =>
 u //
 .combine('canvasType', kAllCanvasTypes).
 beginSubcases().
-combine('alphaMode', ['opaque', 'premultiplied'])).
-
+combine('alphaMode', ['opaque', 'premultiplied'])
+).
 fn((t) => {
   const { canvasType, alphaMode } = t.params;
   const canvas = createCanvas(t, canvasType, 2, 2);
@@ -299,8 +298,8 @@ desc(`Ensure a validation error is raised in configure() if the size of the canv
 params((u) =>
 u //
 .combine('canvasType', kAllCanvasTypes).
-combine('zeroDimension', ['width', 'height'])).
-
+combine('zeroDimension', ['width', 'height'])
+).
 fn((t) => {
   const { canvasType, zeroDimension } = t.params;
   const canvas = createCanvas(t, canvasType, 1, 1);
@@ -341,13 +340,13 @@ fn((t) => {
 
 g.test('size_zero_after_configure').
 desc(
-`Ensure a validation error is raised after configure() if the size of the canvas becomes zero.`).
-
+  `Ensure a validation error is raised after configure() if the size of the canvas becomes zero.`
+).
 params((u) =>
 u //
 .combine('canvasType', kAllCanvasTypes).
-combine('zeroDimension', ['width', 'height'])).
-
+combine('zeroDimension', ['width', 'height'])
+).
 fn((t) => {
   const { canvasType, zeroDimension } = t.params;
   const canvas = createCanvas(t, canvasType, 1, 1);
@@ -378,8 +377,8 @@ fn((t) => {
 
 g.test('viewFormats').
 desc(
-`Test the validation that viewFormats are compatible with the format (for all canvas format / view formats)`).
-
+  `Test the validation that viewFormats are compatible with the format (for all canvas format / view formats)`
+).
 params((u) =>
 u.
 combine('canvasType', kAllCanvasTypes).
@@ -387,19 +386,22 @@ combine('format', kCanvasTextureFormats).
 combine('viewFormatFeature', kFeaturesForFormats).
 beginSubcases().
 expand('viewFormat', ({ viewFormatFeature }) =>
-filterFormatsByFeature(viewFormatFeature, kTextureFormats))).
-
-
+filterFormatsByFeature(viewFormatFeature, kAllTextureFormats)
+)
+).
 beforeAllSubcases((t) => {
   t.selectDeviceOrSkipTestCase([t.params.viewFormatFeature]);
 }).
 fn((t) => {
   const { canvasType, format, viewFormat } = t.params;
+
+  t.skipIfTextureFormatNotSupported(viewFormat);
+
   const canvas = createCanvas(t, canvasType, 1, 1);
   const ctx = canvas.getContext('webgpu');
   assert(ctx instanceof GPUCanvasContext, 'Failed to get WebGPU context from canvas');
 
-  const compatible = viewCompatible(format, viewFormat);
+  const compatible = viewCompatible(t.isCompatibility, format, viewFormat);
 
   // Test configure() produces an error if the formats aren't compatible.
   t.expectValidationError(() => {

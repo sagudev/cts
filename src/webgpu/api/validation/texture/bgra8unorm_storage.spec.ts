@@ -81,37 +81,6 @@ validation cases where this feature is not enabled, which are skipped here.
     });
   });
 
-g.test('create_shader_module_with_bgra8unorm_storage')
-  .desc(
-    `
-Test that it is valid to declare the format of a storage texture as bgra8unorm in a shader module if
-the feature bgra8unorm-storage is enabled.
-`
-  )
-  .beforeAllSubcases(t => {
-    t.selectDeviceOrSkipTestCase('bgra8unorm-storage');
-  })
-  .params(u => u.combine('shaderType', ['fragment', 'compute'] as const))
-  .fn(t => {
-    const { shaderType } = t.params;
-
-    t.testCreateShaderModuleWithBGRA8UnormStorage(shaderType, true);
-  });
-
-g.test('create_shader_module_without_bgra8unorm_storage')
-  .desc(
-    `
-Test that it is invalid to declare the format of a storage texture as bgra8unorm in a shader module
-if the feature bgra8unorm-storage is not enabled.
-`
-  )
-  .params(u => u.combine('shaderType', ['fragment', 'compute'] as const))
-  .fn(t => {
-    const { shaderType } = t.params;
-
-    t.testCreateShaderModuleWithBGRA8UnormStorage(shaderType, false);
-  });
-
 g.test('configure_storage_usage_on_canvas_context_without_bgra8unorm_storage')
   .desc(
     `
@@ -123,7 +92,7 @@ Test that it is invalid to configure a GPUCanvasContext to 'GPUStorageBinding' u
     u
       .combine('canvasType', kAllCanvasTypes)
       .beginSubcases()
-      .expand('usage', p => {
+      .expand('usage', () => {
         const usageSet = new Set<number>();
         for (const usage0 of kTextureUsages) {
           for (const usage1 of kTextureUsages) {
@@ -163,7 +132,7 @@ with 'bgra8unorm-storage' enabled.
     u
       .combine('canvasType', kAllCanvasTypes)
       .beginSubcases()
-      .expand('usage', p => {
+      .expand('usage', () => {
         const usageSet = new Set<number>();
         for (const usage of kTextureUsages) {
           usageSet.add(usage | GPUConst.TextureUsage.STORAGE_BINDING);

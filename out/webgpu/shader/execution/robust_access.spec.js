@@ -7,6 +7,7 @@ Tests to check datatype clamping in shaders is correctly implemented for all ind
 TODO: add tests to check that textureLoad operations stay in-bounds.
 `;import { makeTestGroup } from '../../../common/framework/test_group.js';
 import { assert } from '../../../common/util/util.js';
+import { Float16Array } from '../../../external/petamoriken/float16/float16.js';
 import { GPUTest } from '../../gpu_test.js';
 import { align } from '../../util/math.js';
 import { generateTypes, supportedScalarTypes, supportsAtomics } from '../types.js';
@@ -23,8 +24,9 @@ const kMinI32 = -0x8000_0000;
  * Non-test bindings are in bind group 1, including:
  * - `constants.zero`: a dynamically-uniform `0u` value.
  */
-function runShaderTest(
+async function runShaderTest(
 t,
+enables,
 stage,
 testSource,
 layout,
@@ -41,7 +43,7 @@ dynamicOffsets)
     usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE
   });
 
-  const source = `
+  const source = `${enables}
 struct Constants {
   zero: u32
 };
@@ -62,7 +64,7 @@ fn main() {
 
   t.debug(source);
   const module = t.device.createShaderModule({ code: source });
-  const pipeline = t.device.createComputePipeline({
+  const pipeline = await t.device.createComputePipelineAsync({
     layout,
     compute: { module, entryPoint: 'main' }
   });
@@ -99,7 +101,9 @@ array,
 type,
 { zeroByteStart, zeroByteCount })
 {
-  const constructor = { u32: Uint32Array, i32: Int32Array, f32: Float32Array }[type];
+  const constructor = { u32: Uint32Array, i32: Int32Array, f16: Float16Array, f32: Float32Array }[
+  type];
+
   assert(zeroByteCount % constructor.BYTES_PER_ELEMENT === 0);
   new constructor(array).fill(42);
   new constructor(array, zeroByteStart, zeroByteCount / constructor.BYTES_PER_ELEMENT).fill(0);
@@ -111,7 +115,7 @@ type,
 
 g.test('linear_memory').
 desc(
-`For each indexable data type (vec, mat, sized/unsized array, of various scalar types), attempts
+  `For each indexable data type (vec, mat, sized/unsized array, of various scalar types), attempts
     to access (read, write, atomic load/store) a region of memory (buffer or internal) at various
     (signed/unsigned) indices. Checks that the accesses conform to robust access (OOB reads only
     return bound memory, OOB writes don't write OOB).
@@ -122,59 +126,65 @@ desc(
     TODO: Test types like vec2<atomic<i32>>, if that's allowed.
     TODO: Test exprIndexAddon as constexpr.
     TODO: Test exprIndexAddon as pipeline-overridable constant expression.
-  `).
-
+    TODO: Adjust test logic to support array of f16 in the uniform address space
+  `
+).
 params((u) =>
 u.
 combineWithParams([
-{ storageClass: 'storage', storageMode: 'read', access: 'read', dynamicOffset: false },
+{ addressSpace: 'storage', storageMode: 'read', access: 'read', dynamicOffset: false },
 {
-  storageClass: 'storage',
+  addressSpace: 'storage',
   storageMode: 'read_write',
   access: 'read',
   dynamicOffset: false
 },
 {
-  storageClass: 'storage',
+  addressSpace: 'storage',
   storageMode: 'read_write',
   access: 'write',
   dynamicOffset: false
 },
-{ storageClass: 'storage', storageMode: 'read', access: 'read', dynamicOffset: true },
-{ storageClass: 'storage', storageMode: 'read_write', access: 'read', dynamicOffset: true },
+{ addressSpace: 'storage', storageMode: 'read', access: 'read', dynamicOffset: true },
+{ addressSpace: 'storage', storageMode: 'read_write', access: 'read', dynamicOffset: true },
 {
-  storageClass: 'storage',
+  addressSpace: 'storage',
   storageMode: 'read_write',
   access: 'write',
   dynamicOffset: true
 },
-{ storageClass: 'uniform', access: 'read', dynamicOffset: false },
-{ storageClass: 'uniform', access: 'read', dynamicOffset: true },
-{ storageClass: 'private', access: 'read' },
-{ storageClass: 'private', access: 'write' },
-{ storageClass: 'function', access: 'read' },
-{ storageClass: 'function', access: 'write' },
-{ storageClass: 'workgroup', access: 'read' },
-{ storageClass: 'workgroup', access: 'write' }]).
-
+{ addressSpace: 'uniform', access: 'read', dynamicOffset: false },
+{ addressSpace: 'uniform', access: 'read', dynamicOffset: true },
+{ addressSpace: 'private', access: 'read' },
+{ addressSpace: 'private', access: 'write' },
+{ addressSpace: 'function', access: 'read' },
+{ addressSpace: 'function', access: 'write' },
+{ addressSpace: 'workgroup', access: 'read' },
+{ addressSpace: 'workgroup', access: 'write' }]
+).
 combineWithParams([
 { containerType: 'array' },
 { containerType: 'matrix' },
-{ containerType: 'vector' }]).
-
+{ containerType: 'vector' }]
+).
 combineWithParams([
 { shadowingMode: 'none' },
 { shadowingMode: 'module-scope' },
-{ shadowingMode: 'function-scope' }]).
-
+{ shadowingMode: 'function-scope' }]
+).
 expand('isAtomic', (p) => supportsAtomics(p) ? [false, true] : [false]).
-beginSubcases().
 expand('baseType', supportedScalarTypes).
-expandWithParams(generateTypes)).
-
-fn((t) => {
+beginSubcases().
+expandWithParams(generateTypes)
+).
+beforeAllSubcases((t) => {
+  if (t.params.baseType === 'f16') {
+    t.selectDeviceOrSkipTestCase('shader-f16');
+  }
+}).
+fn(async (t) => {
   const {
-    storageClass,
+    addressSpace,
     storageMode,
     access,
     dynamicOffset,
@@ -188,6 +198,13 @@ fn((t) => {
 
   assert(_kTypeInfo !== undefined, 'not an indexable type');
   assert('arrayLength' in _kTypeInfo);
+
+  if (baseType === 'f16' && addressSpace === 'uniform' && containerType === 'array') {
+    // Array elements must be aligned to 16 bytes, but the logic in generateTypes
+    // creates an array of vec4 of the baseType. But for f16 that's only 8 bytes.
+    // We would need to write more complex logic for that.
+    t.skip('Test logic does not handle array of f16 in the uniform address space');
+  }
 
   let usesCanary = false;
   let globalSource = '';
@@ -207,14 +224,14 @@ struct S {
 };`;
 
   const testGroupBGLEntires = [];
-  switch (storageClass) {
+  switch (addressSpace) {
     case 'uniform':
     case 'storage':
       {
         assert(_kTypeInfo.layout !== undefined);
         const layout = _kTypeInfo.layout;
         bufferBindingSize = align(layout.size, layout.alignment);
-        const qualifiers = storageClass === 'storage' ? `storage, ${storageMode}` : storageClass;
+        const qualifiers = addressSpace === 'storage' ? `storage, ${storageMode}` : addressSpace;
         globalSource += `
 struct TestData {
   data: ${type},
@@ -226,7 +243,7 @@ struct TestData {
           visibility: GPUShaderStage.COMPUTE,
           buffer: {
             type:
-            storageClass === 'uniform' ?
+            addressSpace === 'uniform' ?
             'uniform' :
             storageMode === 'read' ?
             'read-only-storage' :
@@ -241,15 +258,15 @@ struct TestData {
     case 'workgroup':
       usesCanary = true;
       globalSource += structDecl;
-      globalSource += `var<${storageClass}> s: S;`;
+      globalSource += `var<${addressSpace}> s: S;`;
       break;
 
     case 'function':
       usesCanary = true;
       globalSource += structDecl;
       testFunctionSource += 'var s: S;';
-      break;}
-
+      break;
+  }
 
   // Build the test function that will do the tests.
 
@@ -318,7 +335,7 @@ struct TestData {
           case 'read':
             {
               let exprLoadElement = isAtomic ? `atomicLoad(&${exprElement})` : exprElement;
-              if (storageClass === 'uniform' && containerType === 'array') {
+              if (addressSpace === 'uniform' && containerType === 'array') {
                 // Scalar types will be wrapped in a vec4 to satisfy array element size
                 // requirements for the uniform address space, so we need an additional index
                 // accessor expression.
@@ -339,8 +356,8 @@ struct TestData {
               testFunctionSource += `
     s.data[index] = ${exprZeroElement};`;
             }
-            break;}
-
+            break;
+        }
         testFunctionSource += `
   }`;
       }
@@ -387,8 +404,8 @@ var<private> arrayLength = 0;
   let max = 0;
   let arrayLength = 0;
 `;
-      break;}
-
+      break;
+  }
 
   // Run the test
 
@@ -429,6 +446,8 @@ fn runTest() -> u32 {
 
   });
 
+  const enables = t.params.baseType === 'f16' ? 'enable f16;' : '';
+
   // Run it.
   if (bufferBindingSize !== undefined && baseType !== 'bool') {
     const expectedData = new ArrayBuffer(testBufferSize);
@@ -440,42 +459,43 @@ fn runTest() -> u32 {
 
     // Create a buffer that contains zeroes in the allowed access area, and 42s everywhere else.
     const testBuffer = t.makeBufferWithContents(
-    new Uint8Array(expectedData),
-    GPUBufferUsage.COPY_SRC |
-    GPUBufferUsage.UNIFORM |
-    GPUBufferUsage.STORAGE |
-    GPUBufferUsage.COPY_DST);
-
+      new Uint8Array(expectedData),
+      GPUBufferUsage.COPY_SRC |
+      GPUBufferUsage.UNIFORM |
+      GPUBufferUsage.STORAGE |
+      GPUBufferUsage.COPY_DST
+    );
 
     // Run the shader, accessing the buffer.
-    runShaderTest(
-    t,
-    GPUShaderStage.COMPUTE,
-    testSource,
-    layout,
-    [
-    {
-      binding: 0,
-      resource: {
-        buffer: testBuffer,
-        offset: dynamicOffset ? 0 : bufferBindingOffset,
-        size: bufferBindingSize
-      }
-    }],
+    await runShaderTest(
+      t,
+      enables,
+      GPUShaderStage.COMPUTE,
+      testSource,
+      layout,
+      [
+      {
+        binding: 0,
+        resource: {
+          buffer: testBuffer,
+          offset: dynamicOffset ? 0 : bufferBindingOffset,
+          size: bufferBindingSize
+        }
+      }],
 
-    dynamicOffset ? [bufferBindingOffset] : undefined);
-
+      dynamicOffset ? [bufferBindingOffset] : undefined
+    );
 
     // Check that content of the buffer outside of the allowed area didn't change.
     const expectedBytes = new Uint8Array(expectedData);
     t.expectGPUBufferValuesEqual(testBuffer, expectedBytes.subarray(0, bufferBindingOffset), 0);
     t.expectGPUBufferValuesEqual(
-    testBuffer,
-    expectedBytes.subarray(bufferBindingEnd, testBufferSize),
-    bufferBindingEnd);
-
+      testBuffer,
+      expectedBytes.subarray(bufferBindingEnd, testBufferSize),
+      bufferBindingEnd
+    );
   } else {
-    runShaderTest(t, GPUShaderStage.COMPUTE, testSource, layout, []);
+    await runShaderTest(t, enables, GPUShaderStage.COMPUTE, testSource, layout, []);
   }
 });
 //# sourceMappingURL=robust_access.spec.js.map

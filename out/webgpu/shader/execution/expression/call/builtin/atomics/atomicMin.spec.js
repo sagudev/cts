@@ -12,11 +12,11 @@ Returns the original value stored in the atomic object.
 import { GPUTest } from '../../../../../../gpu_test.js';
 
 import {
-dispatchSizes,
-workgroupSizes,
-runStorageVariableTest,
-runWorkgroupVariableTest,
-typedArrayCtor } from
+  dispatchSizes,
+  workgroupSizes,
+  runStorageVariableTest,
+  runWorkgroupVariableTest,
+  typedArrayCtor } from
 './harness.js';
 
 export const g = makeTestGroup(GPUTest);
@@ -24,26 +24,26 @@ export const g = makeTestGroup(GPUTest);
 g.test('min_storage').
 specURL('https://www.w3.org/TR/WGSL/#atomic-rmw').
 desc(
-`
+  `
 AS is storage or workgroup
 T is i32 or u32
 
 fn atomicMin(atomic_ptr: ptr<AS, atomic<T>, read_write>, v: T) -> T
-`).
-
+`
+).
 params((u) =>
 u.
 combine('workgroupSize', workgroupSizes).
 combine('dispatchSize', dispatchSizes).
-combine('scalarKind', ['u32', 'i32'])).
-
+combine('scalarType', ['u32', 'i32'])
+).
 fn((t) => {
   // Allocate one extra element to ensure it doesn't get modified
   const bufferNumElements = 2;
 
-  const initValue = t.params.scalarKind === 'u32' ? 0xffffffff : 0x7fffffff;
+  const initValue = t.params.scalarType === 'u32' ? 0xffffffff : 0x7fffffff;
   const op = `atomicMin(&output[0], id)`;
-  const expected = new (typedArrayCtor(t.params.scalarKind))(bufferNumElements).fill(initValue);
+  const expected = new (typedArrayCtor(t.params.scalarType))(bufferNumElements).fill(initValue);
   expected[0] = 0;
 
   runStorageVariableTest({
@@ -60,29 +60,29 @@ fn((t) => {
 g.test('min_workgroup').
 specURL('https://www.w3.org/TR/WGSL/#atomic-rmw').
 desc(
-`
+  `
 AS is storage or workgroup
 T is i32 or u32
 
 fn atomicMin(atomic_ptr: ptr<AS, atomic<T>, read_write>, v: T) -> T
-`).
-
+`
+).
 params((u) =>
 u.
 combine('workgroupSize', workgroupSizes).
 combine('dispatchSize', dispatchSizes).
-combine('scalarKind', ['u32', 'i32'])).
-
+combine('scalarType', ['u32', 'i32'])
+).
 fn((t) => {
   // Allocate one extra element to ensure it doesn't get modified
   const wgNumElements = 2;
 
-  const initValue = t.params.scalarKind === 'u32' ? 0xffffffff : 0x7fffffff;
+  const initValue = t.params.scalarType === 'u32' ? 0xffffffff : 0x7fffffff;
   const op = `atomicMin(&wg[0], id)`;
 
-  const expected = new (typedArrayCtor(t.params.scalarKind))(
-  wgNumElements * t.params.dispatchSize).
-  fill(initValue);
+  const expected = new (typedArrayCtor(t.params.scalarType))(
+    wgNumElements * t.params.dispatchSize
+  ).fill(initValue);
   for (let d = 0; d < t.params.dispatchSize; ++d) {
     const wg = expected.subarray(d * wgNumElements);
     wg[0] = 0;

@@ -5,7 +5,11 @@ This test dedicatedly tests validation of GPUDepthStencilState of createRenderPi
 `;import { makeTestGroup } from '../../../../common/framework/test_group.js';
 import { unreachable } from '../../../../common/util/util.js';
 import { kCompareFunctions, kStencilOperations } from '../../../capability_info.js';
-import { kTextureFormats, kTextureFormatInfo, kDepthStencilFormats } from '../../../format_info.js';
+import {
+  kAllTextureFormats,
+  kTextureFormatInfo,
+  kDepthStencilFormats } from
+'../../../format_info.js';
 import { getFragmentShaderCodeWithOutput } from '../../../util/shader.js';
 
 import { CreateRenderPipelineValidationTest } from './common.js';
@@ -14,10 +18,15 @@ export const g = makeTestGroup(CreateRenderPipelineValidationTest);
 
 g.test('format').
 desc(`The texture format in depthStencilState must be a depth/stencil format.`).
-params((u) => u.combine('isAsync', [false, true]).combine('format', kTextureFormats)).
+params((u) =>
+u //
+.combine('isAsync', [false, true]).
+combine('format', kAllTextureFormats)
+).
 beforeAllSubcases((t) => {
   const { format } = t.params;
   const info = kTextureFormatInfo[format];
+  t.skipIfTextureFormatNotSupported(format);
   t.selectDeviceOrSkipTestCase(info.feature);
 }).
 fn((t) => {
@@ -31,16 +40,98 @@ fn((t) => {
   t.doCreateRenderPipelineTest(isAsync, !!info.depth || !!info.stencil, descriptor);
 });
 
-g.test('depth_test').
+g.test('depthCompare_optional').
 desc(
-`Depth aspect must be contained in the format if depth test is enabled in depthStencilState.`).
-
+  `The depthCompare in depthStencilState is optional for stencil-only formats but
+    required for formats with a depth if depthCompare is not used for anything.`
+).
 params((u) =>
 u.
 combine('isAsync', [false, true]).
 combine('format', kDepthStencilFormats).
-combine('depthCompare', kCompareFunctions)).
+beginSubcases().
+combine('depthCompare', ['always', undefined]).
+combine('depthWriteEnabled', [false, true, undefined]).
+combine('stencilFrontDepthFailOp', ['keep', 'zero']).
+combine('stencilBackDepthFailOp', ['keep', 'zero'])
+).
+beforeAllSubcases((t) => {
+  const { format } = t.params;
+  const info = kTextureFormatInfo[format];
+  t.skipIfTextureFormatNotSupported(format);
+  t.selectDeviceOrSkipTestCase(info.feature);
+}).
+fn((t) => {
+  const {
+    isAsync,
+    format,
+    depthCompare,
+    depthWriteEnabled,
+    stencilFrontDepthFailOp,
+    stencilBackDepthFailOp
+  } = t.params;
+  const info = kTextureFormatInfo[format];
+  const descriptor = t.getDescriptor({
+    depthStencil: {
+      format,
+      depthCompare,
+      depthWriteEnabled,
+      stencilFront: { depthFailOp: stencilFrontDepthFailOp },
+      stencilBack: { depthFailOp: stencilBackDepthFailOp }
+    }
+  });
 
+  const depthFailOpsAreKeep =
+  stencilFrontDepthFailOp === 'keep' && stencilBackDepthFailOp === 'keep';
+  const stencilStateIsDefault = depthFailOpsAreKeep;
+  let success = true;
+  if (depthWriteEnabled || depthCompare && depthCompare !== 'always') {
+    if (!info.depth) success = false;
+  }
+  if (!stencilStateIsDefault) {
+    if (!info.stencil) success = false;
+  }
+  if (info.depth) {
+    if (depthWriteEnabled === undefined) success = false;
+    if (depthWriteEnabled || !depthFailOpsAreKeep) {
+      if (depthCompare === undefined) success = false;
+    }
+  }
+
+  t.doCreateRenderPipelineTest(isAsync, success, descriptor);
+});
+
+g.test('depthWriteEnabled_optional').
+desc(
+  `The depthWriteEnabled in depthStencilState is optional for stencil-only formats but required for formats with a depth.`
+).
+params((u) => u.combine('isAsync', [false, true]).combine('format', kDepthStencilFormats)).
+beforeAllSubcases((t) => {
+  const { format } = t.params;
+  const info = kTextureFormatInfo[format];
+  t.skipIfTextureFormatNotSupported(format);
+  t.selectDeviceOrSkipTestCase(info.feature);
+}).
+fn((t) => {
+  const { isAsync, format } = t.params;
+  const info = kTextureFormatInfo[format];
+  const descriptor = t.getDescriptor({
+    depthStencil: { format, depthCompare: 'always', depthWriteEnabled: undefined }
+  });
+
+  t.doCreateRenderPipelineTest(isAsync, !info.depth, descriptor);
+});
+
+g.test('depth_test').
+desc(
+  `Depth aspect must be contained in the format if depth test is enabled in depthStencilState.`
+).
+params((u) =>
+u.
+combine('isAsync', [false, true]).
+combine('format', kDepthStencilFormats).
+combine('depthCompare', kCompareFunctions)
+).
 beforeAllSubcases((t) => {
   const { format } = t.params;
   const info = kTextureFormatInfo[format];
@@ -60,14 +151,14 @@ fn((t) => {
 
 g.test('depth_write').
 desc(
-`Depth aspect must be contained in the format if depth write is enabled in depthStencilState.`).
-
+  `Depth aspect must be contained in the format if depth write is enabled in depthStencilState.`
+).
 params((u) =>
 u.
 combine('isAsync', [false, true]).
 combine('format', kDepthStencilFormats).
-combine('depthWriteEnabled', [false, true])).
-
+combine('depthWriteEnabled', [false, true])
+).
 beforeAllSubcases((t) => {
   const { format } = t.params;
   const info = kTextureFormatInfo[format];
@@ -86,8 +177,8 @@ fn((t) => {
 g.test('depth_write,frag_depth').
 desc(`Depth aspect must be contained in the format if frag_depth is written in fragment stage.`).
 params((u) =>
-u.combine('isAsync', [false, true]).combine('format', [undefined, ...kDepthStencilFormats])).
-
+u.combine('isAsync', [false, true]).combine('format', [undefined, ...kDepthStencilFormats])
+).
 beforeAllSubcases((t) => {
   const { format } = t.params;
   if (format !== undefined) {
@@ -105,9 +196,9 @@ fn((t) => {
     { format, depthWriteEnabled: true, depthCompare: 'always' } :
     undefined,
     fragmentShaderCode: getFragmentShaderCodeWithOutput(
-    [{ values: [1, 1, 1, 1], plainType: 'f32', componentCount: 4 }],
-    { value: 0.5 })
-
+      [{ values: [1, 1, 1, 1], plainType: 'f32', componentCount: 4 }],
+      { value: 0.5 }
+    )
   });
 
   const hasDepth = format ? !!kTextureFormatInfo[format].depth : false;
@@ -116,15 +207,15 @@ fn((t) => {
 
 g.test('stencil_test').
 desc(
-`Stencil aspect must be contained in the format if stencil test is enabled in depthStencilState.`).
-
+  `Stencil aspect must be contained in the format if stencil test is enabled in depthStencilState.`
+).
 params((u) =>
 u.
 combine('isAsync', [false, true]).
 combine('format', kDepthStencilFormats).
 combine('face', ['front', 'back']).
-combine('compare', [undefined, ...kCompareFunctions])).
-
+combine('compare', [undefined, ...kCompareFunctions])
+).
 beforeAllSubcases((t) => {
   const { format } = t.params;
   const info = kTextureFormatInfo[format];
@@ -161,8 +252,8 @@ fn((t) => {
 
 g.test('stencil_write').
 desc(
-`Stencil aspect must be contained in the format if stencil write is enabled in depthStencilState.`).
-
+  `Stencil aspect must be contained in the format if stencil write is enabled in depthStencilState.`
+).
 params((u) =>
 u.
 combine('isAsync', [false, true]).
@@ -173,10 +264,10 @@ combine('faceAndOpType', [
 'frontPassOp',
 'backFailOp',
 'backDepthFailOp',
-'backPassOp']).
-
-combine('op', [undefined, ...kStencilOperations])).
-
+'backPassOp']
+).
+combine('op', [undefined, ...kStencilOperations])
+).
 beforeAllSubcases((t) => {
   const { format } = t.params;
   const info = kTextureFormatInfo[format];
@@ -212,8 +303,8 @@ fn((t) => {
       depthStencil = { ...common, stencilBack: { passOp: op } };
       break;
     default:
-      unreachable();}
-
+      unreachable();
+  }
   const descriptor = t.getDescriptor({ depthStencil });
 
   const stencilWriteEnabled = op !== undefined && op !== 'keep';

@@ -47,8 +47,8 @@ const kU32 = new Set([
   ...kAbstractIntNonNegative,
   ...kAbstractIntNegative,
   ...kI32,
-  ...kU32]);
-
+  ...kU32]
+  );
   const kInvalidIntegers = new Set([
   '0123', // Integer does not start with zero
   '2147483648i', // max signed int + 1
@@ -61,8 +61,8 @@ const kU32 = new Set([
   g.test('abstract_int').
   desc(`Test that valid integers are accepted, and invalid integers are rejected.`).
   params((u) =>
-  u.combine('val', new Set([...kValidIntegers, ...kInvalidIntegers])).beginSubcases()).
-
+  u.combine('val', new Set([...kValidIntegers, ...kInvalidIntegers])).beginSubcases()
+  ).
   fn((t) => {
     const code = `var test = ${t.params.val};`;
     t.expectCompileResult(kValidIntegers.has(t.params.val), t.wrapInEntryPoint(code));
@@ -115,8 +115,8 @@ const kU32 = new Set([
   ]);
   g.test('u32').
   desc(
-  `Test that valid unsigned integers are accepted, and invalid unsigned integers are rejected.`).
-
+    `Test that valid unsigned integers are accepted, and invalid unsigned integers are rejected.`
+  ).
   params((u) => u.combine('val', new Set([...kValidU32, ...kInvalidU32])).beginSubcases()).
   beforeAllSubcases((t) => {
     if (t.params.val.includes('h')) {
@@ -193,7 +193,7 @@ const kAbstractFloat = new Set([
   ]);
   const kInvalidF16s = new Set([
   '1.1eh', // Missing exponent value
-  '1.1e%2h', // Invalid exponent sign
+  '1.1e!2h', // Invalid exponent sign
   '1.1e+h', // Missing exponent with sign
   '1.0e+999999h', // Too large
   '0x1.0p+999999h', // Too large hex
@@ -206,8 +206,8 @@ const kAbstractFloat = new Set([
   params((u) =>
   u.
   combine('val', new Set([...kValidFloats, ...kInvalidFloats, ...kInvalidF16s])).
-  beginSubcases()).
-
+  beginSubcases()
+  ).
   beforeAllSubcases((t) => {
     if (kF16.has(t.params.val) || kInvalidF16s.has(t.params.val)) {
       t.selectDeviceOrSkipTestCase('shader-f16');
@@ -217,9 +217,9 @@ const kAbstractFloat = new Set([
     const code = `var test = ${t.params.val};`;
     const extensionList = kF16.has(t.params.val) || kInvalidF16s.has(t.params.val) ? ['f16'] : [];
     t.expectCompileResult(
-    kValidFloats.has(t.params.val),
-    t.wrapInEntryPoint(code, extensionList));
-
+      kValidFloats.has(t.params.val),
+      t.wrapInEntryPoint(code, extensionList)
+    );
   });
 }
 
@@ -277,7 +277,7 @@ const kAbstractFloat = new Set([
   '1u', // unsigned int
   '1f', // no conversion from f32 to f16
   '1.1eh', // Missing exponent value
-  '1.1e%2h', // Invalid exponent sign
+  '1.1e!2h', // Invalid exponent sign
   '1.1e+h', // Missing exponent with sign
   '1.0e+999999h', // Too large
   '0x1.0p+999999h' // Too large hex
@@ -285,13 +285,19 @@ const kAbstractFloat = new Set([
 
   g.test('f16').
   desc(
-  `
+    `
 Test that valid half floats are accepted, and invalid half floats are rejected
-
-TODO: Need to inject the 'enable fp16' into the shader to enable the parsing.
-`).
-
+`
+  ).
   params((u) => u.combine('val', new Set([...kValidF16, ...kInvalidF16])).beginSubcases()).
-  unimplemented();
+  beforeAllSubcases((t) => {
+    t.selectDeviceOrSkipTestCase('shader-f16');
+  }).
+  fn((t) => {
+    const { val } = t.params;
+    const code = `var test: f16 = ${val};`;
+    const extensionList = ['f16'];
+    t.expectCompileResult(kValidF16.has(val), t.wrapInEntryPoint(code, extensionList));
+  });
 }
 //# sourceMappingURL=literal.spec.js.map

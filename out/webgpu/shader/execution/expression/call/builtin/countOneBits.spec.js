@@ -11,7 +11,7 @@ Also known as "population count".
 Component-wise when T is a vector.
 `;import { makeTestGroup } from '../../../../../../common/framework/test_group.js';
 import { GPUTest } from '../../../../../gpu_test.js';
-import { TypeU32, u32Bits, u32, TypeI32, i32Bits, i32 } from '../../../../../util/conversion.js';
+import { Type, u32Bits, u32, i32Bits, i32 } from '../../../../../util/conversion.js';
 import { allInputSources, run } from '../../expression.js';
 
 import { builtin } from './builtin.js';
@@ -22,11 +22,11 @@ g.test('u32').
 specURL('https://www.w3.org/TR/WGSL/#integer-builtin-functions').
 desc(`u32 tests`).
 params((u) =>
-u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])).
-
+u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])
+).
 fn(async (t) => {
   const cfg = t.params;
-  await run(t, builtin('countOneBits'), [TypeU32], TypeU32, cfg, [
+  await run(t, builtin('countOneBits'), [Type.u32], Type.u32, cfg, [
   // Zero
   { input: u32Bits(0b00000000000000000000000000000000), expected: u32(0) },
 
@@ -129,19 +129,19 @@ fn(async (t) => {
   { input: u32Bits(0b00011110101111011111111111111111), expected: u32(26) },
   { input: u32Bits(0b00110110111111100111111110111101), expected: u32(24) },
   { input: u32Bits(0b01010111111101111111011111011111), expected: u32(26) },
-  { input: u32Bits(0b11100010011110101101101110101111), expected: u32(21) }]);
-
+  { input: u32Bits(0b11100010011110101101101110101111), expected: u32(21) }]
+  );
 });
 
 g.test('i32').
 specURL('https://www.w3.org/TR/WGSL/#integer-builtin-functions').
 desc(`i32 tests`).
 params((u) =>
-u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])).
-
+u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])
+).
 fn(async (t) => {
   const cfg = t.params;
-  await run(t, builtin('countOneBits'), [TypeI32], TypeI32, cfg, [
+  await run(t, builtin('countOneBits'), [Type.i32], Type.i32, cfg, [
   // Zero
   { input: i32Bits(0b00000000000000000000000000000000), expected: i32(0) },
 
@@ -244,7 +244,7 @@ fn(async (t) => {
   { input: i32Bits(0b00011110101111011111111111111111), expected: i32(26) },
   { input: i32Bits(0b00110110111111100111111110111101), expected: i32(24) },
   { input: i32Bits(0b01010111111101111111011111011111), expected: i32(26) },
-  { input: i32Bits(0b11100010011110101101101110101111), expected: i32(21) }]);
-
+  { input: i32Bits(0b11100010011110101101101110101111), expected: i32(21) }]
+  );
 });
 //# sourceMappingURL=countOneBits.spec.js.map

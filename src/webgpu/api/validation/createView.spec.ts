@@ -10,7 +10,7 @@ import {
 } from '../../capability_info.js';
 import {
   kTextureFormatInfo,
-  kTextureFormats,
+  kAllTextureFormats,
   kFeaturesForFormats,
   filterFormatsByFeature,
   viewCompatible,
@@ -39,10 +39,10 @@ g.test('format')
       .combine('viewFormatFeature', kFeaturesForFormats)
       .beginSubcases()
       .expand('textureFormat', ({ textureFormatFeature }) =>
-        filterFormatsByFeature(textureFormatFeature, kTextureFormats)
+        filterFormatsByFeature(textureFormatFeature, kAllTextureFormats)
       )
       .expand('viewFormat', ({ viewFormatFeature }) =>
-        filterFormatsByFeature(viewFormatFeature, [undefined, ...kTextureFormats])
+        filterFormatsByFeature(viewFormatFeature, [undefined, ...kAllTextureFormats])
       )
       .combine('useViewFormatList', [false, true])
   )
@@ -54,7 +54,10 @@ g.test('format')
     const { textureFormat, viewFormat, useViewFormatList } = t.params;
     const { blockWidth, blockHeight } = kTextureFormatInfo[textureFormat];
 
-    const compatible = viewFormat === undefined || viewCompatible(textureFormat, viewFormat);
+    t.skipIfTextureFormatNotSupported(textureFormat, viewFormat);
+
+    const compatible =
+      viewFormat === undefined || viewCompatible(t.isCompatibility, textureFormat, viewFormat);
 
     const texture = t.device.createTexture({
       format: textureFormat,
@@ -88,6 +91,9 @@ g.test('dimension')
       .combine('textureDimension', kTextureDimensions)
       .combine('viewDimension', [...kTextureViewDimensions, undefined])
   )
+  .beforeAllSubcases(t => {
+    t.skipIfTextureViewDimensionNotSupported(t.params.viewDimension);
+  })
   .fn(t => {
     const { textureDimension, viewDimension } = t.params;
 
@@ -118,7 +124,7 @@ g.test('aspect')
   )
   .params(u =>
     u //
-      .combine('format', kTextureFormats)
+      .combine('format', kAllTextureFormats)
       .combine('aspect', kTextureAspects)
   )
   .beforeAllSubcases(t => {
@@ -185,7 +191,7 @@ g.test('array_layers')
   - Defaulting of baseArrayLayer and arrayLayerCount
   - baseArrayLayer+arrayLayerCount must be within the texture`
   )
-  .params(u =>
+  .params(
     kTextureAndViewDimensions
       .beginSubcases()
       .expand('textureLayers', ({ textureDimension: d }) => (d === '2d' ? [1, 6, 18] : [1]))
@@ -211,6 +217,8 @@ g.test('array_layers')
       baseArrayLayer,
       arrayLayerCount,
     } = t.params;
+
+    t.skipIfTextureViewDimensionNotSupported(viewDimension);
 
     const kWidth = 1 << (kLevels - 1); // 32
     const textureDescriptor: GPUTextureDescriptor = {
@@ -246,7 +254,7 @@ g.test('mip_levels')
   - Cases with baseMipLevel or mipLevelCount undefined (compares against reference defaulting impl)
   `
   )
-  .params(u =>
+  .params(
     kTextureAndViewDimensions
       .beginSubcases()
       .combine('textureLevels', [1, kLevels - 2, kLevels])
@@ -263,13 +271,10 @@ g.test('mip_levels')
       })
   )
   .fn(t => {
-    const {
-      textureDimension,
-      viewDimension,
-      textureLevels,
-      baseMipLevel,
-      mipLevelCount,
-    } = t.params;
+    const { textureDimension, viewDimension, textureLevels, baseMipLevel, mipLevelCount } =
+      t.params;
+
+    t.skipIfTextureViewDimensionNotSupported(viewDimension);
 
     const textureDescriptor: GPUTextureDescriptor = {
       format: 'rgba8unorm',
@@ -308,6 +313,8 @@ g.test('cube_faces_square')
   )
   .fn(t => {
     const { dimension, size } = t.params;
+
+    t.skipIfTextureViewDimensionNotSupported(dimension);
 
     const texture = t.device.createTexture({
       format: 'rgba8unorm',

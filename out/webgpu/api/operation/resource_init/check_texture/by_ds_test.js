@@ -4,6 +4,7 @@
 import { virtualMipSize } from '../../../../util/texture/base.js';
 
 
+
 function makeFullscreenVertexModule(device) {
   return device.createShaderModule({
     code: `
@@ -109,15 +110,15 @@ subresourceRange) =>
 
   assert(params.dimension === '2d');
   for (const viewDescriptor of t.generateTextureViewDescriptorsForRendering(
-  'all',
-  subresourceRange))
-  {
+    'all',
+    subresourceRange
+  )) {
     assert(viewDescriptor.baseMipLevel !== undefined);
     const [width, height] = virtualMipSize(
-    params.dimension,
-    [t.textureWidth, t.textureHeight, 1],
-    viewDescriptor.baseMipLevel);
-
+      params.dimension,
+      [t.textureWidth, t.textureHeight, 1],
+      viewDescriptor.baseMipLevel
+    );
 
     const renderTexture = t.device.createTexture({
       size: [width, height, 1],
@@ -152,10 +153,10 @@ subresourceRange) =>
 
       depthStencilAttachment: {
         view: texture.createView(viewDescriptor),
-        depthStoreOp: formatInfo.depth ? 'store' : undefined,
         depthLoadOp: formatInfo.depth ? 'load' : undefined,
-        stencilStoreOp: formatInfo.stencil ? 'store' : undefined,
-        stencilLoadOp: formatInfo.stencil ? 'load' : undefined
+        depthStoreOp: formatInfo.depth ? 'store' : undefined,
+        stencilLoadOp: formatInfo.stencil ? 'load' : undefined,
+        stencilStoreOp: formatInfo.stencil ? 'store' : undefined
       }
     });
 
@@ -165,8 +166,8 @@ subresourceRange) =>
           assert(expectedDepth !== undefined);
 
           pass.setPipeline(
-          getDepthTestEqualPipeline(t, params.format, params.sampleCount, expectedDepth));
-
+            getDepthTestEqualPipeline(t, params.format, params.sampleCount, expectedDepth)
+          );
           break;
         }
 
@@ -177,8 +178,8 @@ subresourceRange) =>
           pass.setPipeline(getStencilTestEqualPipeline(t, params.format, params.sampleCount));
           pass.setStencilReference(expectedStencil);
           break;
-        }}
-
+        }
+    }
 
     pass.draw(3);
     pass.end();

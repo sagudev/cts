@@ -5,14 +5,15 @@
 import {
 
 
-kMaximumLimitBaseParams,
-makeLimitTestGroup } from
+  kMaximumLimitBaseParams,
+  makeLimitTestGroup } from
 './limit_utils.js';
 
 const limit = 'maxComputeWorkgroupStorageSize';
 export const { g, description } = makeLimitTestGroup(limit);
 
-const kSmallestWorkgroupVarSize = 4;
+// Each var is roundUp(16, SizeOf(T))
+const kSmallestWorkgroupVarSize = 16;
 
 const wgslF16Types = {
   f16: { alignOf: 2, sizeOf: 2, requireF16: true },
@@ -71,7 +72,9 @@ function getModuleForWorkgroupStorageSize(device, wgslType, size) {
   const { sizeOf, alignOf, requireF16 } = wgslTypes[wgslType];
   const unitSize = align(sizeOf, alignOf);
   const units = Math.floor(size / unitSize);
-  const extra = (size - units * unitSize) / kSmallestWorkgroupVarSize;
+  const sizeUsed = align(units * unitSize, 16);
+  const sizeLeft = size - sizeUsed;
+  const extra = Math.floor(sizeLeft / kSmallestWorkgroupVarSize);
 
   const code =
   (requireF16 ? 'enable f16;\n' : '') +
@@ -89,7 +92,7 @@ function getModuleForWorkgroupStorageSize(device, wgslType, size) {
       b: vec2f,
     };
     var<workgroup> d0: array<${wgslType}, ${units}>;
-    ${extra ? `var<workgroup> d1: array<f32, ${extra}>;` : ''}
+    ${extra ? `var<workgroup> d1: array<vec4<f32>, ${extra}>;` : ''}
     @compute @workgroup_size(1) fn main() {
       _ = d0;
       ${extra ? '_ = d1;' : ''}
@@ -113,8 +116,8 @@ maximumLimit)
     case 'atMaximum':
       return maximumLimit;
     case 'overMaximum':
-      return maximumLimit + kSmallestWorkgroupVarSize;}
-
+      return maximumLimit + kSmallestWorkgroupVarSize;
+  }
 }
 
 function getTestValue(testValueName, requestedLimit) {
@@ -122,8 +125,8 @@ function getTestValue(testValueName, requestedLimit) {
     case 'atLimit':
       return requestedLimit;
     case 'overLimit':
-      return requestedLimit + kSmallestWorkgroupVarSize;}
-
+      return requestedLimit + kSmallestWorkgroupVarSize;
+  }
 }
 
 function getDeviceLimitToRequestAndValueToTest(
@@ -143,8 +146,8 @@ maximumLimit)
 g.test('createComputePipeline,at_over').
 desc(`Test using createComputePipeline(Async) at and over ${limit} limit`).
 params(
-kMaximumLimitBaseParams.combine('async', [false, true]).combine('wgslType', kWGSLTypes)).
-
+  kMaximumLimitBaseParams.combine('async', [false, true]).combine('wgslType', kWGSLTypes)
+).
 fn(async (t) => {
   const { limitTest, testValueName, async, wgslType } = t.params;
   const { defaultLimit, adapterLimit: maximumLimit } = t;
@@ -157,27 +160,27 @@ fn(async (t) => {
   const features = hasF16 ? ['shader-f16'] : [];
 
   const { requestedLimit, testValue } = getDeviceLimitToRequestAndValueToTest(
-  limitTest,
-  testValueName,
-  defaultLimit,
-  maximumLimit);
-
+    limitTest,
+    testValueName,
+    defaultLimit,
+    maximumLimit
+  );
   await t.testDeviceWithSpecificLimits(
-  requestedLimit,
-  testValue,
-  async ({ device, testValue, actualLimit, shouldError }) => {
-    const { module, code } = getModuleForWorkgroupStorageSize(device, wgslType, testValue);
+    requestedLimit,
+    testValue,
+    async ({ device, testValue, actualLimit, shouldError }) => {
+      const { module, code } = getModuleForWorkgroupStorageSize(device, wgslType, testValue);
 
-    await t.testCreatePipeline(
-    'createComputePipeline',
-    async,
-    module,
-    shouldError,
-    `size: ${testValue}, limit: ${actualLimit}\n${code}`);
-
-  },
-  {},
-  features);
-
+      await t.testCreatePipeline(
+        'createComputePipeline',
+        async,
+        module,
+        shouldError,
+        `size: ${testValue}, limit: ${actualLimit}\n${code}`
+      );
+    },
+    {},
+    features
+  );
 });
 //# sourceMappingURL=maxComputeWorkgroupStorageSize.spec.js.map

@@ -266,6 +266,7 @@ Test the copy must be a full subresource if the texture's format is depth/stenci
   )
   .beforeAllSubcases(t => {
     const info = kTextureFormatInfo[t.params.format];
+    t.skipIfTextureFormatNotSupported(t.params.format);
     t.selectDeviceOrSkipTestCase(info.feature);
   })
   .fn(t => {
@@ -356,17 +357,12 @@ Test that the texture copy origin must be aligned to the format's block size.
   )
   .beforeAllSubcases(t => {
     const info = kTextureFormatInfo[t.params.format];
+    t.skipIfTextureFormatNotSupported(t.params.format);
     t.selectDeviceOrSkipTestCase(info.feature);
   })
   .fn(t => {
-    const {
-      valueToCoordinate,
-      coordinateToTest,
-      format,
-      method,
-      depthOrArrayLayers,
-      dimension,
-    } = t.params;
+    const { valueToCoordinate, coordinateToTest, format, method, depthOrArrayLayers, dimension } =
+      t.params;
     const info = kTextureFormatInfo[format];
     const size = { width: 0, height: 0, depthOrArrayLayers };
     const origin = { x: 0, y: 0, z: 0 };
@@ -419,6 +415,7 @@ Test that the copy size must be aligned to the texture's format's block size.
   )
   .beforeAllSubcases(t => {
     const info = kTextureFormatInfo[t.params.format];
+    t.skipIfTextureFormatNotSupported(t.params.format);
     t.selectDeviceOrSkipTestCase(info.feature);
   })
   .fn(t => {
@@ -443,7 +440,7 @@ Test that the copy size must be aligned to the texture's format's block size.
     const texture = t.createAlignedTexture(format, size, origin, dimension);
 
     const bytesPerRow = align(
-      Math.max(1, Math.ceil(size.width / info.blockWidth)) * info.bytesPerBlock,
+      Math.max(1, Math.ceil(size.width / info.blockWidth)) * info.color.bytes,
       256
     );
     const rowsPerImage = Math.ceil(size.height / info.blockHeight);

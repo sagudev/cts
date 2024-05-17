@@ -5,12 +5,12 @@ import { iterRange, unreachable } from '../../../common/util/util.js';
 import { GPUTest } from '../../gpu_test.js';
 import {
 
-kVectorContainerTypes,
+  kVectorContainerTypes,
 
-kMatrixContainerTypes,
+  kMatrixContainerTypes,
 
-supportedScalarTypes,
-supportsAtomics } from
+  supportedScalarTypes,
+  supportsAtomics } from
 '../types.js';
 
 
@@ -36,29 +36,29 @@ function prettyPrint(t) {
             type: 'scalar',
             scalarType: t.scalarType,
             isAtomic: false
-          })}>`;}
-
+          })}>`;
+      }
       break;
     case 'scalar':
       if (t.isAtomic) {
         return `atomic<${t.scalarType}>`;
       }
-      return t.scalarType;}
-
+      return t.scalarType;
+  }
 }
 
 export const g = makeTestGroup(GPUTest);
 g.test('compute,zero_init').
 desc(
-`Test that uninitialized variables in workgroup, private, and function storage classes are initialized to zero.`).
-
+  `Test that uninitialized variables in workgroup, private, and function storage classes are initialized to zero.`
+).
 params((u) =>
 u
 // Only workgroup, function, and private variables can be declared without data bound to them.
 // The implementation's shader translator should ensure these values are initialized.
-.combine('storageClass', ['workgroup', 'private', 'function']).
-expand('workgroupSize', ({ storageClass }) => {
-  switch (storageClass) {
+.combine('addressSpace', ['workgroup', 'private', 'function']).
+expand('workgroupSize', ({ addressSpace }) => {
+  switch (addressSpace) {
     case 'workgroup':
       return [
       [1, 1, 1],
@@ -73,8 +73,8 @@ expand('workgroupSize', ({ storageClass }) => {
 
     case 'function':
     case 'private':
-      return [[1, 1, 1]];}
-
+      return [[1, 1, 1]];
+  }
 }).
 beginSubcases()
 // Fewer subcases: Only 0 and 2. If double-nested containers work, single-nested should too.
@@ -107,6 +107,10 @@ expandWithParams(function* (p) {
       [true, false] :
       [false]) {
         for (const scalarType of supportedScalarTypes({ isAtomic, ...p })) {
+          // Fewer subcases: supportedScalarTypes was expanded to include f16
+          // but that may take too much time. It would require more complex code.
+          if (scalarType === 'f16') continue;
+
           // Fewer subcases: For nested types, skip atomic u32 and non-atomic i32.
           if (p._containerDepth > 0) {
             if (scalarType === 'u32' && isAtomic) continue;
@@ -213,8 +217,8 @@ expandWithParams(function* (p) {
               yield t;
             }
           }
-          break;}
-
+          break;
+      }
     }
   }
 
@@ -224,10 +228,18 @@ expandWithParams(function* (p) {
       _type: t
     };
   }
-})).
-
+})
+).
 batch(15).
-fn((t) => {
+fn(async (t) => {
+  const { workgroupSize } = t.params;
+  const { maxComputeInvocationsPerWorkgroup } = t.device.limits;
+  const numWorkgroupInvocations = workgroupSize.reduce((a, b) => a * b);
+  t.skipIf(
+    numWorkgroupInvocations > maxComputeInvocationsPerWorkgroup,
+    `workgroupSize: ${workgroupSize} > maxComputeInvocationsPerWorkgroup: ${maxComputeInvocationsPerWorkgroup}`
+  );
+
   let moduleScope = `
       struct Output {
         failed : atomic<u32>
@@ -251,10 +263,10 @@ fn((t) => {
         switch (type.containerType) {
           case 'array':
             return `array<${ensureType(
-            `${typeName}_ArrayElement`,
-            type.elementType,
-            depth + 1)
-            }, ${type.length}>`;
+              `${typeName}_ArrayElement`,
+              type.elementType,
+              depth + 1
+            )}, ${type.length}>`;
           case 'struct':{
               if (declaredStructTypes.has(type)) {
                 return declaredStructTypes.get(type);
@@ -263,10 +275,10 @@ fn((t) => {
               const members = type.members.
               map((member, i) => {
                 return `\n    member${i} : ${ensureType(
-                `${typeName}_Member${i}`,
-                member,
-                depth + 1)
-                },`;
+                  `${typeName}_Member${i}`,
+                  member,
+                  depth + 1
+                )},`;
               }).
               join('');
               declaredStructTypes.set(type, typeName);
@@ -278,30 +290,30 @@ fn((t) => {
             }
           default:
             return `${type.containerType}<${ensureType(
-            typeName,
-            {
-              type: 'scalar',
-              scalarType: type.scalarType,
-              isAtomic: false
-            },
-            depth + 1)
-            }>`;}
-
+              typeName,
+              {
+                type: 'scalar',
+                scalarType: type.scalarType,
+                isAtomic: false
+              },
+              depth + 1
+            )}>`;
+        }
         break;
       case 'scalar':
-        return type.isAtomic ? `atomic<${type.scalarType}>` : type.scalarType;}
-
+        return type.isAtomic ? `atomic<${type.scalarType}>` : type.scalarType;
+    }
   }('TestType', t.params._type);
 
-  switch (t.params.storageClass) {
+  switch (t.params.addressSpace) {
     case 'workgroup':
     case 'private':
-      moduleScope += `\nvar<${t.params.storageClass}> testVar: ${typeDecl};`;
+      moduleScope += `\nvar<${t.params.addressSpace}> testVar: ${typeDecl};`;
       break;
     case 'function':
       functionScope += `\nvar testVar: ${typeDecl};`;
-      break;}
-
+      break;
+  }
 
   const checkZeroCode = function checkZero(
   value,
@@ -328,14 +340,14 @@ fn((t) => {
               const length = type.containerType[3];
               return `\nfor (var i${depth} = 0u; i${depth} < ${length}u + zero; i${depth} = i${depth} + 1u) {
                   ${checkZero(
-              `${value}[i${depth}]`,
-              {
-                type: 'scalar',
-                scalarType: type.scalarType,
-                isAtomic: false
-              },
-              depth + 1)
-              }
+                `${value}[i${depth}]`,
+                {
+                  type: 'scalar',
+                  scalarType: type.scalarType,
+                  isAtomic: false
+                },
+                depth + 1
+              )}
                 }`;
             } else if (type.containerType.indexOf('mat') !== -1) {
               const cols = type.containerType[3];
@@ -343,20 +355,20 @@ fn((t) => {
               return `\nfor (var c${depth} = 0u; c${depth} < ${cols}u + zero; c${depth} = c${depth} + 1u) {
                   for (var r${depth} = 0u; r${depth} < ${rows}u; r${depth} = r${depth} + 1u) {
                     ${checkZero(
-              `${value}[c${depth}][r${depth}]`,
-              {
-                type: 'scalar',
-                scalarType: type.scalarType,
-                isAtomic: false
-              },
-              depth + 1)
-              }
+                `${value}[c${depth}][r${depth}]`,
+                {
+                  type: 'scalar',
+                  scalarType: type.scalarType,
+                  isAtomic: false
+                },
+                depth + 1
+              )}
                   }
                 }`;
             } else {
               unreachable();
-            }}
-
+            }
+        }
         break;
       case 'scalar':{
           let expected;
@@ -372,8 +384,8 @@ fn((t) => {
               break;
             case 'u32':
               expected = '0u';
-              break;}
-
+              break;
+          }
           if (type.isAtomic) {
             value = `atomicLoad(&${value})`;
           }
@@ -381,8 +393,8 @@ fn((t) => {
           // Note: this could have an early return, but we omit it because it makes
           // the tests fail cause with DXGI_ERROR_DEVICE_HUNG on Windows.
           return `\nif (${value} != ${expected}) { atomicStore(&output.failed, 1u); }`;
-        }}
-
+        }
+    }
   }('testVar', t.params._type);
 
   const wgsl = `
@@ -395,7 +407,7 @@ fn((t) => {
       }
     `;
 
-  if (t.params.storageClass === 'workgroup') {
+  if (t.params.addressSpace === 'workgroup') {
     // Populate the maximum amount of workgroup memory with known values to
     // ensure initialization overrides in another shader.
     const wg_memory_limits = t.device.limits.maxComputeWorkgroupStorageSize;
@@ -423,8 +435,24 @@ fn((t) => {
       }
       `;
 
-    const fillPipeline = t.device.createComputePipeline({
-      layout: 'auto',
+    const fillLayout = t.device.createBindGroupLayout({
+      entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: 'read-only-storage' }
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: 'storage' }
+      }]
+
+    });
+
+    const fillPipeline = await t.device.createComputePipelineAsync({
+      layout: t.device.createPipelineLayout({ bindGroupLayouts: [fillLayout] }),
+      label: 'Workgroup Fill Pipeline',
       compute: {
         module: t.device.createShaderModule({
           code: wgsl
@@ -434,9 +462,9 @@ fn((t) => {
     });
 
     const inputBuffer = t.makeBufferWithContents(
-    new Uint32Array([...iterRange(wg_memory_limits / 4, (x) => 0xdeadbeef)]),
-    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
-
+      new Uint32Array([...iterRange(wg_memory_limits / 4, (_i) => 0xdeadbeef)]),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    );
     t.trackForCleanup(inputBuffer);
     const outputBuffer = t.device.createBuffer({
       size: wg_memory_limits,
@@ -471,7 +499,7 @@ fn((t) => {
     t.queue.submit([e.finish()]);
   }
 
-  const pipeline = t.device.createComputePipeline({
+  const pipeline = await t.device.createComputePipelineAsync({
     layout: 'auto',
     compute: {
       module: t.device.createShaderModule({

@@ -12,18 +12,18 @@ export const g = makeTestGroup(ValidationTest);
 
 g.test('command_buffer,device_mismatch').
 desc(
-`
+  `
     Tests submit cannot be called with command buffers created from another device
     Test with two command buffers to make sure all command buffers can be validated:
     - cb0 and cb1 from same device
     - cb0 and cb1 from different device
-    `).
-
+    `
+).
 paramsSubcasesOnly([
 { cb0Mismatched: false, cb1Mismatched: false }, // control case
 { cb0Mismatched: true, cb1Mismatched: false },
-{ cb0Mismatched: false, cb1Mismatched: true }]).
-
+{ cb0Mismatched: false, cb1Mismatched: true }]
+).
 beforeAllSubcases((t) => {
   t.selectMismatchedDeviceOrSkipTestCase(undefined);
 }).
@@ -44,5 +44,20 @@ fn((t) => {
   t.expectValidationError(() => {
     t.device.queue.submit([cb0, cb1]);
   }, mismatched);
+});
+
+g.test('command_buffer,duplicate_buffers').
+desc(
+  `
+    Tests submit cannot be called with the same command buffer listed multiple times:
+    `
+).
+fn((t) => {
+  const encoder0 = t.device.createCommandEncoder();
+  const cb = encoder0.finish();
+
+  t.expectValidationError(() => {
+    t.device.queue.submit([cb, cb]);
+  }, true);
 });
 //# sourceMappingURL=submit.spec.js.map

@@ -8,12 +8,13 @@ import { attemptGarbageCollection } from '../../common/util/collect_garbage.js';
 import { keysOf } from '../../common/util/data_tables.js';
 import { getGPU } from '../../common/util/navigator_gpu.js';
 import { assert, iterRange } from '../../common/util/util.js';
-import { kLimitInfo } from '../../webgpu/capability_info.js';
+import { getDefaultLimitsForAdapter } from '../../webgpu/capability_info.js';
 
 export const g = makeTestGroup(Fixture);
 
 /** Adapter preference identifier to option. */
 const kAdapterTypeOptions =
+
 
 {
   'low-power': { powerPreference: 'low-power', forceFallbackAdapter: false },
@@ -33,10 +34,11 @@ async function createDeviceAndComputeCommands(adapter) {
   // Constants are computed such that per run, this function should allocate roughly 2G
   // worth of data. This should be sufficient as we run these creation functions many
   // times. If the data backing the created objects is not recycled we should OOM.
+  const limitInfo = getDefaultLimitsForAdapter(adapter);
   const kNumPipelines = 64;
   const kNumBindgroups = 128;
   const kNumBufferElements =
-  kLimitInfo.maxComputeWorkgroupSizeX.default * kLimitInfo.maxComputeWorkgroupSizeY.default;
+  limitInfo.maxComputeWorkgroupSizeX.default * limitInfo.maxComputeWorkgroupSizeY.default;
   const kBufferSize = kNumBufferElements * 4;
   const kBufferData = new Uint32Array([...iterRange(kNumBufferElements, (x) => x)]);
 
@@ -54,8 +56,8 @@ async function createDeviceAndComputeCommands(adapter) {
               @group(0) @binding(0) var<storage, read_write> buffer: Buffer;
               @compute @workgroup_size(1) fn main(
                   @builtin(global_invocation_id) id: vec3<u32>) {
-                buffer.data[id.x * ${kLimitInfo.maxComputeWorkgroupSizeX.default}u + id.y] =
-                  buffer.data[id.x * ${kLimitInfo.maxComputeWorkgroupSizeX.default}u + id.y] +
+                buffer.data[id.x * ${limitInfo.maxComputeWorkgroupSizeX.default}u + id.y] =
+                  buffer.data[id.x * ${limitInfo.maxComputeWorkgroupSizeX.default}u + id.y] +
                     ${pipelineIndex}u;
               }
             `
@@ -79,9 +81,9 @@ async function createDeviceAndComputeCommands(adapter) {
       pass.setPipeline(pipeline);
       pass.setBindGroup(0, bindgroup);
       pass.dispatchWorkgroups(
-      kLimitInfo.maxComputeWorkgroupSizeX.default,
-      kLimitInfo.maxComputeWorkgroupSizeY.default);
-
+        limitInfo.maxComputeWorkgroupSizeX.default,
+        limitInfo.maxComputeWorkgroupSizeY.default
+      );
       pass.end();
       commands.push(encoder.finish());
     }
@@ -219,7 +221,7 @@ desc(`Tests allocation of many coexisting GPUDevice objects.`).
 params((u) => u.combine('adapterType', kAdapterTypes)).
 fn(async (t) => {
   const { adapterType } = t.params;
-  const adapter = await getGPU().requestAdapter(kAdapterTypeOptions[adapterType]);
+  const adapter = await getGPU(t.rec).requestAdapter(kAdapterTypeOptions[adapterType]);
   assert(adapter !== null, 'Failed to get adapter.');
 
   // Based on Vulkan conformance test requirement to be able to create multiple devices.
@@ -234,15 +236,15 @@ fn(async (t) => {
 
 g.test('continuous,with_destroy').
 desc(
-`Tests allocation and destruction of many GPUDevice objects over time. Device objects
+  `Tests allocation and destruction of many GPUDevice objects over time. Device objects
 are sequentially requested with a series of device allocated objects created on each
 device. The devices are then destroyed to verify that the device and the device allocated
-objects are recycled over a very large number of iterations.`).
-
+objects are recycled over a very large number of iterations.`
+).
 params((u) => u.combine('adapterType', kAdapterTypes)).
 fn(async (t) => {
   const { adapterType } = t.params;
-  const adapter = await getGPU().requestAdapter(kAdapterTypeOptions[adapterType]);
+  const adapter = await getGPU(t.rec).requestAdapter(kAdapterTypeOptions[adapterType]);
   assert(adapter !== null, 'Failed to get adapter.');
 
   // Since devices are being destroyed, we should be able to create many devices.
@@ -266,15 +268,15 @@ fn(async (t) => {
 
 g.test('continuous,no_destroy').
 desc(
-`Tests allocation and implicit GC of many GPUDevice objects over time. Objects are
+  `Tests allocation and implicit GC of many GPUDevice objects over time. Objects are
 sequentially requested and dropped for GC over a very large number of iterations. Note
 that without destroy, we do not create device allocated objects because that will
-implicitly keep the device in scope.`).
-
+implicitly keep the device in scope.`
+).
 params((u) => u.combine('adapterType', kAdapterTypes)).
 fn(async (t) => {
   const { adapterType } = t.params;
-  const adapter = await getGPU().requestAdapter(kAdapterTypeOptions[adapterType]);
+  const adapter = await getGPU(t.rec).requestAdapter(kAdapterTypeOptions[adapterType]);
   assert(adapter !== null, 'Failed to get adapter.');
 
   const kNumDevices = 10_000;

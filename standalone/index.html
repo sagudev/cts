@@ -42,7 +42,7 @@
         --testcase-data-status-fail-bg-color: #fdd;
         --testcase-data-status-warn-bg-color: #ffb;
         --testcase-data-status-pass-bg-color: #cfc;
-        --testcase-data-status-skip-bg-color: #eee;
+        --testcase-data-status-skip-bg-color: #aaf;
 
         --testcase-logs-bg-color: #white;
         --testcase-log-odd-bg-color: #fff;
@@ -74,14 +74,14 @@
           --testcase-data-status-fail-bg-color: #400;
           --testcase-data-status-warn-bg-color: #660;
           --testcase-data-status-pass-bg-color: #040;
-          --testcase-data-status-skip-bg-color: #444;
+          --testcase-data-status-skip-bg-color: #446;
 
           --testcase-logs-bg-color: #black;
           --testcase-log-odd-bg-color: #000;
           --testcase-log-even-bg-color: #080808;
           --testcase-log-text-fg-color: #aaa;
           --testcase-log-text-first-line-fg-color: #fff;
-        }        
+        }
       }
       body {
         font-family: monospace;
@@ -148,7 +148,7 @@
         width: 100%;
         left: 0;
         top: 0;
-        background-color: #000;
+        background-color: #068;
         color: #fff;
         align-items: center;
       }
@@ -170,6 +170,13 @@
         border-right: 1px solid var(--results-fg-color);
       }
 
+      /* PS: this does not disable using the keyboard to click */
+      #resultsVis.disable-run button.leafrun,
+      #resultsVis.disable-run button.subtreerun {
+         pointer-events: none;
+         opacity: 25%;
+      }
+
       /* tree nodes */
 
       .nodeheader {
@@ -184,7 +191,8 @@
       .leafrun,
       .nodelink,
       .collapsebtn,
-      .testcaselogbtn {
+      .testcaselogbtn,
+      .copybtn {
         display: inline-flex;
         flex-shrink: 0;
         flex-grow: 0;
@@ -202,7 +210,8 @@
       .leafrun::before,
       .nodelink::before,
       .collapsebtn::before,
-      .testcaselogbtn::before {
+      .testcaselogbtn::before,
+      .copybtn::before {
         content: "";
         width: 100%;
         height: 100%;
@@ -215,7 +224,8 @@
         .leafrun,
         .nodelink,
         .collapsebtn,
-        .testcaselogbtn {
+        .testcaselogbtn,
+        .copybtn {
           flex-basis: 24px;
           border-radius: 4px;
           width: 24px;
@@ -227,7 +237,8 @@
         .leafrun,
         .nodelink,
         .collapsebtn,
-        .testcaselogbtn {
+        .testcaselogbtn,
+        .copybtn {
           flex-basis: 36px;
           border-radius: 6px;
           width: 36px;
@@ -242,6 +253,9 @@
       }
       .nodelink::before {
         background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMAQMAAABsu86kAAAABlBMVEUAAAAAAAClZ7nPAAAAAXRSTlMAQObYZgAAACRJREFUCNdjYGBg+P+BoUGAYesFhj4BhvsFDPYNDHwMCMTAAACqJwbp3VgbrAAAAABJRU5ErkJggg==);
+      }
+      .copybtn::before {
+        background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMAQMAAABsu86kAAAABlBMVEUAAAAAAAClZ7nPAAAAAXRSTlMAQObYZgAAACVJREFUCNdjYGBgqGdgcGRgcGBg8H/A4KEAQhkKDBxgxP8AKA8AVNUEx41Lj8MAAAAASUVORK5CYII=);
       }
       .nodetitle {
         display: inline;
@@ -288,8 +302,14 @@
       .subtree[data-status='pass'] {
         background: linear-gradient(90deg, var(--testcase-data-status-pass-bg-color), var(--testcase-data-status-pass-bg-color) 16px, var(--bg-color) 16px);
       }
+      .subtree[data-status='skip'] {
+        background: linear-gradient(90deg, var(--testcase-data-status-skip-bg-color), var(--testcase-data-status-skip-bg-color) 16px, var(--bg-color) 16px);
+      }
       .subtree[data-status='pass']::before {
         content: "✔"
+      }
+      .subtree[data-status='skip']::before {
+        content: "○"
       }
       .subtree[data-status='passfail']::before {
         content: "✔/⛔"
@@ -375,7 +395,7 @@
         background: var(--testcase-log-even-bg-color);
       }
       .testcaselogbtn::before {
-        background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMAQMAAABsu86kAAAABlBMVEUAAAAAAAClZ7nPAAAAAXRSTlMAQObYZgAAACRJREFUCNdjYGBg+H+AwUGBwV+BQUGAQX0CiNQQYFABk8ogLgBsYQUt2gNKPwAAAABJRU5ErkJggg==); 
+        background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMAQMAAABsu86kAAAABlBMVEUAAAAAAAClZ7nPAAAAAXRSTlMAQObYZgAAACRJREFUCNdjYGBg+H+AwUGBwV+BQUGAQX0CiNQQYFABk8ogLgBsYQUt2gNKPwAAAABJRU5ErkJggg==);
       }
       .testcaselogtext {
         flex: 1 0;
@@ -412,8 +432,8 @@
       <table id="options">
         <tbody></tbody>
       </table>
-      <p class="important">Note: The options above only set the url parameters. 
-         You must reload the page for the options to take affect.</p>
+      <p class="important">Note: The options above only set the url parameters.
+         You must reload the page for the options to take effect.</p>
     </details>
     <p>
       <input type=button id=expandall value="Expand All (slow!)">

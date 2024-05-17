@@ -12,7 +12,7 @@ Component-wise when T is a vector.
 Also known as "ctz" in some languages.
 `;import { makeTestGroup } from '../../../../../../common/framework/test_group.js';
 import { GPUTest } from '../../../../../gpu_test.js';
-import { i32, i32Bits, TypeI32, u32, TypeU32, u32Bits } from '../../../../../util/conversion.js';
+import { i32, i32Bits, Type, u32, u32Bits } from '../../../../../util/conversion.js';
 import { allInputSources, run } from '../../expression.js';
 
 import { builtin } from './builtin.js';
@@ -23,11 +23,11 @@ g.test('u32').
 specURL('https://www.w3.org/TR/WGSL/#integer-builtin-functions').
 desc(`u32 tests`).
 params((u) =>
-u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])).
-
+u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])
+).
 fn(async (t) => {
   const cfg = t.params;
-  await run(t, builtin('countTrailingZeros'), [TypeU32], TypeU32, cfg, [
+  await run(t, builtin('countTrailingZeros'), [Type.u32], Type.u32, cfg, [
   // Zero
   { input: u32Bits(0b00000000000000000000000000000000), expected: u32(32) },
 
@@ -130,19 +130,19 @@ fn(async (t) => {
   { input: u32Bits(0b11010100000000000000000000000000), expected: u32(26) },
   { input: u32Bits(0b10111000000000000000000000000000), expected: u32(27) },
   { input: u32Bits(0b01110000000000000000000000000000), expected: u32(28) },
-  { input: u32Bits(0b10100000000000000000000000000000), expected: u32(29) }]);
-
+  { input: u32Bits(0b10100000000000000000000000000000), expected: u32(29) }]
+  );
 });
 
 g.test('i32').
 specURL('https://www.w3.org/TR/WGSL/#integer-builtin-functions').
 desc(`i32 tests`).
 params((u) =>
-u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])).
-
+u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])
+).
 fn(async (t) => {
   const cfg = t.params;
-  await run(t, builtin('countTrailingZeros'), [TypeI32], TypeI32, cfg, [
+  await run(t, builtin('countTrailingZeros'), [Type.i32], Type.i32, cfg, [
   // Zero
   { input: i32Bits(0b00000000000000000000000000000000), expected: i32(32) },
 
@@ -245,7 +245,7 @@ fn(async (t) => {
   { input: i32Bits(0b11010100000000000000000000000000), expected: i32(26) },
   { input: i32Bits(0b10111000000000000000000000000000), expected: i32(27) },
   { input: i32Bits(0b01110000000000000000000000000000), expected: i32(28) },
-  { input: i32Bits(0b10100000000000000000000000000000), expected: i32(29) }]);
-
+  { input: i32Bits(0b10100000000000000000000000000000), expected: i32(29) }]
+  );
 });
 //# sourceMappingURL=countTrailingZeros.spec.js.map

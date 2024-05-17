@@ -5,11 +5,11 @@ GPUExternalTexture expiration mechanism validation tests.
 `;import { makeTestGroup } from '../../../common/framework/test_group.js';
 import { assert } from '../../../common/util/util.js';
 import {
-getVideoElement,
-startPlayingAndWaitForVideo,
-getVideoFrameFromVideoElement,
-waitForNextFrame,
-waitForNextTask } from
+  getVideoElement,
+  startPlayingAndWaitForVideo,
+  getVideoFrameFromVideoElement,
+  waitForNextFrame,
+  waitForNextTask } from
 '../../web_platform/util.js';
 
 import { ValidationTest } from './validation_test.js';
@@ -65,16 +65,16 @@ export const g = makeTestGroup(GPUExternalTextureExpireTest);
 
 g.test('import_multiple_times_in_same_task_scope').
 desc(
-`
+  `
     Tests that GPUExternalTexture is valid after been imported in the task.
-    Tests that in the same task scope, import twice on the same video source should return
+    Tests that in the same task scope, import twice on the same video source may return
     the same GPUExternalTexture and bindGroup doesn't need to be updated.
-    `).
-
+    `
+).
 params((u) =>
 u //
-.combine('sourceType', ['VideoElement', 'VideoFrame'])).
-
+.combine('sourceType', ['VideoElement', 'VideoFrame'])
+).
 fn(async (t) => {
   const sourceType = t.params.sourceType;
   const videoElement = t.getDefaultVideoElementAndCheck();
@@ -86,10 +86,7 @@ fn(async (t) => {
     sourceType === 'VideoFrame' ?
     await getVideoFrameFromVideoElement(t, videoElement) :
     videoElement;
-    externalTexture = t.device.importExternalTexture({
-
-      source: source
-    });
+    externalTexture = t.device.importExternalTexture({ source });
 
     bindGroup = t.device.createBindGroup({
       layout: t.getDefaultBindGroupLayout(),
@@ -99,27 +96,32 @@ fn(async (t) => {
     t.submitCommandBuffer(bindGroup, true);
 
     // Import again in the same task scope should return same object.
-    const shouldBeTheSameExternalTexture = t.device.importExternalTexture({
+    const mayBeTheSameExternalTexture = t.device.importExternalTexture({ source });
 
-      source: source
-    });
-    assert(externalTexture === shouldBeTheSameExternalTexture);
+    if (externalTexture === mayBeTheSameExternalTexture) {
+      t.submitCommandBuffer(bindGroup, true);
+    } else {
+      bindGroup = t.device.createBindGroup({
+        layout: t.getDefaultBindGroupLayout(),
+        entries: [{ binding: 0, resource: externalTexture }]
+      });
 
-    t.submitCommandBuffer(bindGroup, true);
+      t.submitCommandBuffer(bindGroup, true);
+    }
   });
 });
 
 g.test('import_and_use_in_different_microtask').
 desc(
-`
+  `
     Tests that in the same task scope, imported GPUExternalTexture is valid in
     different microtasks.
-    `).
-
+    `
+).
 params((u) =>
 u //
-.combine('sourceType', ['VideoElement', 'VideoFrame'])).
-
+.combine('sourceType', ['VideoElement', 'VideoFrame'])
+).
 fn(async (t) => {
   const sourceType = t.params.sourceType;
   const videoElement = t.getDefaultVideoElementAndCheck();
@@ -134,10 +136,7 @@ fn(async (t) => {
 
     // Import GPUExternalTexture
     queueMicrotask(() => {
-      externalTexture = t.device.importExternalTexture({
-
-        source: source
-      });
+      externalTexture = t.device.importExternalTexture({ source });
     });
 
     // Submit GPUExternalTexture
@@ -153,15 +152,16 @@ fn(async (t) => {
 
 g.test('import_and_use_in_different_task').
 desc(
-`
+  `
     Tests that in the different task scope, previous imported GPUExternalTexture
-    should be expired.
-    `).
-
+    should be expired if it is imported from HTMLVideoElment. GPUExternalTexture
+    imported from WebCodec VideoFrame is not expired.
+    `
+).
 params((u) =>
 u //
-.combine('sourceType', ['VideoElement', 'VideoFrame'])).
-
+.combine('sourceType', ['VideoElement', 'VideoFrame'])
+).
 fn(async (t) => {
   const sourceType = t.params.sourceType;
   const videoElement = t.getDefaultVideoElementAndCheck();
@@ -173,10 +173,7 @@ fn(async (t) => {
     sourceType === 'VideoFrame' ?
     await getVideoFrameFromVideoElement(t, videoElement) :
     videoElement;
-    externalTexture = t.device.importExternalTexture({
-
-      source: source
-    });
+    externalTexture = t.device.importExternalTexture({ source });
 
     bindGroup = t.device.createBindGroup({
       layout: t.getDefaultBindGroupLayout(),
@@ -187,39 +184,29 @@ fn(async (t) => {
   });
 
   await waitForNextTask(() => {
-    // Enter in another task scope, previous GPUExternalTexture should be expired.
-    t.submitCommandBuffer(bindGroup, false);
+    // Enter in another task scope. For GPUExternalTexture imported from WebCodec,
+    // it shouldn't be expired because VideoFrame is not 'closed'.
+    // For GPUExternalTexutre imported from HTMLVideoElement, it should be expired.
+    t.submitCommandBuffer(bindGroup, sourceType === 'VideoFrame' ? true : false);
   });
 });
 
 g.test('use_import_to_refresh').
 desc(
-`
+  `
     Tests that in the different task scope, imported GPUExternalTexture
-    again on the same source frame should return the same GPUExternalTexture
-    object and refresh it.
-    `).
-
-params((u) =>
-u //
-.combine('sourceType', ['VideoElement', 'VideoFrame'])).
-
+    again on the same HTMLVideoElement should return active GPUExternalTexture.
+    `
+).
 fn(async (t) => {
-  const sourceType = t.params.sourceType;
   const videoElement = t.getDefaultVideoElementAndCheck();
 
   let bindGroup;
   let externalTexture;
   let source;
-  await startPlayingAndWaitForVideo(videoElement, async () => {
-    source =
-    sourceType === 'VideoFrame' ?
-    await getVideoFrameFromVideoElement(t, videoElement) :
-    videoElement;
-    externalTexture = t.device.importExternalTexture({
-
-      source: source
-    });
+  await startPlayingAndWaitForVideo(videoElement, () => {
+    source = videoElement;
+    externalTexture = t.device.importExternalTexture({ source });
 
     bindGroup = t.device.createBindGroup({
       layout: t.getDefaultBindGroupLayout(),
@@ -230,25 +217,28 @@ fn(async (t) => {
   });
 
   await waitForNextTask(() => {
-    // Video frame is not updated, import should return the same GPUExternalTexture object.
-    const shouldBeTheSameExternalTexture = t.device.importExternalTexture({
+    const mayBeTheSameExternalTexture = t.device.importExternalTexture({ source });
 
-      source: source
-    });
-    assert(externalTexture === shouldBeTheSameExternalTexture);
-
-    // ImportExternalTexture should refresh expired GPUExternalTexture.
-    t.submitCommandBuffer(bindGroup, true);
+    if (externalTexture === mayBeTheSameExternalTexture) {
+      // ImportExternalTexture should refresh expired GPUExternalTexture.
+      t.submitCommandBuffer(bindGroup, true);
+    } else {
+      bindGroup = t.device.createBindGroup({
+        layout: t.getDefaultBindGroupLayout(),
+        entries: [{ binding: 0, resource: externalTexture }]
+      });
+      t.submitCommandBuffer(bindGroup, true);
+    }
   });
 });
 
 g.test('webcodec_video_frame_close_expire_immediately').
 desc(
-`
+  `
     Tests that in the same task scope, imported GPUExternalTexture should be expired
     immediately if webcodec VideoFrame.close() is called.
-    `).
-
+    `
+).
 fn(async (t) => {
   const videoElement = t.getDefaultVideoElementAndCheck();
 
@@ -256,10 +246,7 @@ fn(async (t) => {
   let externalTexture;
   await startPlayingAndWaitForVideo(videoElement, async () => {
     const source = await getVideoFrameFromVideoElement(t, videoElement);
-    externalTexture = t.device.importExternalTexture({
-
-      source: source
-    });
+    externalTexture = t.device.importExternalTexture({ source });
 
     bindGroup = t.device.createBindGroup({
       layout: t.getDefaultBindGroupLayout(),
@@ -276,13 +263,13 @@ fn(async (t) => {
 
 g.test('import_from_different_video_frame').
 desc(
-`
+  `
     Tests that imported GPUExternalTexture from different video frame should
     return different GPUExternalTexture objects.
     If the frames are from the same HTMLVideoElement source, GPUExternalTexture
     with old frame should be expired and not been refreshed again.
-    `).
-
+    `
+).
 fn(async (t) => {
   const videoElement = t.getDefaultVideoElementAndCheck();
 

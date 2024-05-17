@@ -97,9 +97,7 @@ class F extends CopyToTextureUtils {
     }
 
     const imageData = new ImageData(imagePixels, width, height, { colorSpace });
-    // MAINTENANCE_TODO: Remove as any when tsc support imageData.colorSpace
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    if (typeof (imageData as any).colorSpace === 'undefined') {
+    if (typeof imageData.colorSpace === 'undefined') {
       this.skip('color space attr is not supported for ImageData');
     }
 
@@ -495,6 +493,9 @@ g.test('copy_contents_from_2d_context_canvas')
       .combine('width', [1, 2, 4, 15])
       .combine('height', [1, 2, 4, 15])
   )
+  .beforeAllSubcases(t => {
+    t.skipIfTextureFormatNotSupported(t.params.dstColorFormat);
+  })
   .fn(t => {
     const { width, height, canvasType, dstAlphaMode } = t.params;
 
@@ -556,6 +557,9 @@ g.test('copy_contents_from_gl_context_canvas')
       .combine('width', [1, 2, 4, 15])
       .combine('height', [1, 2, 4, 15])
   )
+  .beforeAllSubcases(t => {
+    t.skipIfTextureFormatNotSupported(t.params.dstColorFormat);
+  })
   .fn(t => {
     const { width, height, canvasType, contextName, srcPremultiplied, dstAlphaMode } = t.params;
 
@@ -623,17 +627,12 @@ g.test('copy_contents_from_gpu_context_canvas')
       .combine('height', [1, 2, 4, 15])
   )
   .beforeAllSubcases(t => {
+    t.skipIfTextureFormatNotSupported(t.params.dstColorFormat);
     t.selectMismatchedDeviceOrSkipTestCase(undefined);
   })
   .fn(t => {
-    const {
-      width,
-      height,
-      canvasType,
-      srcAndDstInSameGPUDevice,
-      srcAlphaMode,
-      dstAlphaMode,
-    } = t.params;
+    const { width, height, canvasType, srcAndDstInSameGPUDevice, srcAlphaMode, dstAlphaMode } =
+      t.params;
 
     const device = srcAndDstInSameGPUDevice ? t.device : t.mismatchedDevice;
     const { canvas: source, expectedSourceData } = t.initSourceWebGPUCanvas({
@@ -693,6 +692,9 @@ g.test('copy_contents_from_bitmaprenderer_context_canvas')
       .combine('width', [1, 2, 4, 15])
       .combine('height', [1, 2, 4, 15])
   )
+  .beforeAllSubcases(t => {
+    t.skipIfTextureFormatNotSupported(t.params.dstColorFormat);
+  })
   .fn(async t => {
     const { width, height, canvasType, dstAlphaMode } = t.params;
 
@@ -758,7 +760,7 @@ g.test('color_space_conversion')
   .params(u =>
     u
       .combine('srcColorSpace', ['srgb', 'display-p3'] as const)
-      .combine('dstColorSpace', ['srgb'] as const)
+      .combine('dstColorSpace', ['srgb', 'display-p3'] as const)
       .combine('dstColorFormat', kValidTextureFormatsForCopyE2T)
       .combine('dstPremultiplied', [true, false])
       .combine('srcDoFlipYDuringCopy', [true, false])
@@ -766,6 +768,9 @@ g.test('color_space_conversion')
       .combine('width', [1, 2, 4, 15, 255, 256])
       .combine('height', [1, 2, 4, 15, 255, 256])
   )
+  .beforeAllSubcases(t => {
+    t.skipIfTextureFormatNotSupported(t.params.dstColorFormat);
+  })
   .fn(t => {
     const {
       width,

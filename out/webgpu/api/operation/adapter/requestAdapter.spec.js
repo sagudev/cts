@@ -98,11 +98,11 @@ desc(`request adapter with all possible options and check for basic functionalit
 params((u) =>
 u.
 combine('powerPreference', powerPreferenceModes).
-combine('forceFallbackAdapter', forceFallbackOptions)).
-
+combine('forceFallbackAdapter', forceFallbackOptions)
+).
 fn(async (t) => {
   const { powerPreference, forceFallbackAdapter } = t.params;
-  const adapter = await getGPU().requestAdapter({
+  const adapter = await getGPU(t.rec).requestAdapter({
     ...(powerPreference !== undefined && { powerPreference }),
     ...(forceFallbackAdapter !== undefined && { forceFallbackAdapter })
   });
@@ -118,8 +118,8 @@ fn(async (t) => {
 
 g.test('requestAdapter_no_parameters').
 desc(`request adapter with no parameters`).
-fn(async () => {
-  const adapter = await getGPU().requestAdapter();
+fn(async (t) => {
+  const adapter = await getGPU(t.rec).requestAdapter();
   await testAdapter(adapter);
 });
 //# sourceMappingURL=requestAdapter.spec.js.map

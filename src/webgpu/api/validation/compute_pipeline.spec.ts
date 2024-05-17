@@ -5,9 +5,16 @@ Note: entry point matching tests are in shader_module/entry_point.spec.ts
 `;
 
 import { makeTestGroup } from '../../../common/framework/test_group.js';
+import { keysOf } from '../../../common/util/data_tables.js';
 import { kValue } from '../../util/constants.js';
 import { TShaderStage, getShaderWithEntryPoint } from '../../util/shader.js';
 
+import {
+  kAPIResources,
+  getWGSLShaderForResource,
+  getAPIBindGroupLayoutForResource,
+  doResourcesMatch,
+} from './utils.js';
 import { ValidationTest } from './validation_test.js';
 
 class F extends ValidationTest {
@@ -233,7 +240,7 @@ Tests calling createComputePipeline(Async) validation for compute workgroup_size
         [1, 1, 63],
         [1, 1, 64],
         [1, 1, 65],
-      ])
+      ] as const)
   )
   .fn(t => {
     const { isAsync, size } = t.params;
@@ -251,13 +258,14 @@ Tests calling createComputePipeline(Async) validation for compute workgroup_size
       },
     };
 
-    size[1] = size[1] ?? 1;
-    size[2] = size[2] ?? 1;
+    const workgroupX = size[0];
+    const workgroupY = size[1] ?? 1;
+    const workgroupZ = size[2] ?? 1;
 
     const _success =
-      size[0] <= t.device.limits.maxComputeWorkgroupSizeX &&
-      size[1] <= t.device.limits.maxComputeWorkgroupSizeY &&
-      size[2] <= t.device.limits.maxComputeWorkgroupSizeZ;
+      workgroupX <= t.device.limits.maxComputeWorkgroupSizeX &&
+      workgroupY <= t.device.limits.maxComputeWorkgroupSizeY &&
+      workgroupZ <= t.device.limits.maxComputeWorkgroupSizeZ;
     t.doCreateComputePipelineTest(isAsync, _success, descriptor);
   });
 
@@ -688,4 +696,47 @@ Tests calling createComputePipeline(Async) validation for overridable constants 
     testFn(1, 1, true);
     testFn(maxVec4Count + 1, 0, false);
     testFn(0, maxMat4Count + 1, false);
+  });
+
+g.test('resource_compatibility')
+  .desc(
+    'Tests validation of resource (bind group) compatibility between pipeline layout and WGSL shader'
+  )
+  .params(u =>
+    u //
+      .combine('apiResource', keysOf(kAPIResources))
+      .beginSubcases()
+      .combine('isAsync', [true, false] as const)
+      .combine('wgslResource', keysOf(kAPIResources))
+  )
+  .fn(t => {
+    const apiResource = kAPIResources[t.params.apiResource];
+    const wgslResource = kAPIResources[t.params.wgslResource];
+    t.skipIf(
+      wgslResource.storageTexture !== undefined &&
+        wgslResource.storageTexture.access !== 'write-only' &&
+        !t.hasLanguageFeature('readonly_and_readwrite_storage_textures'),
+      'Storage textures require language feature'
+    );
+
+    const layout = t.device.createPipelineLayout({
+      bindGroupLayouts: [
+        getAPIBindGroupLayoutForResource(t.device, GPUShaderStage.COMPUTE, apiResource),
+      ],
+    });
+
+    const descriptor = {
+      layout,
+      compute: {
+        module: t.device.createShaderModule({
+          code: getWGSLShaderForResource('compute', wgslResource),
+        }),
+        entryPoint: 'main',
+      },
+    };
+    t.doCreateComputePipelineTest(
+      t.params.isAsync,
+      doResourcesMatch(apiResource, wgslResource),
+      descriptor
+    );
   });

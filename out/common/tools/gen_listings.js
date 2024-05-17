@@ -9,7 +9,7 @@ function usage(rc) {
 
 For each suite in SUITE_DIRS, generate listings and write each listing.js
 into OUT_DIR/{suite}/listing.js. Example:
-  tools/gen_listings out/ src/unittests/ src/webgpu/
+  tools/gen_listings gen/ src/unittests/ src/webgpu/
 
 Options:
   --help          Print this message and exit.
@@ -40,25 +40,18 @@ const outDir = argv[2];
 
 for (const suiteDir of argv.slice(3)) {
   // Run concurrently for each suite (might be a tiny bit more efficient)
-  void crawl(suiteDir, false).then((listing) => {
+  void crawl(suiteDir).then((listing) => {
     const suite = path.basename(suiteDir);
     const outFile = path.normalize(path.join(outDir, `${suite}/listing.js`));
     fs.mkdirSync(path.join(outDir, suite), { recursive: true });
     fs.writeFileSync(
-    outFile,
-    `\
+      outFile,
+      `\
 // AUTO-GENERATED - DO NOT EDIT. See ${myself}.
 
 export const listing = ${JSON.stringify(listing, undefined, 2)};
-`);
-
-
-    // If there was a sourcemap for the file we just replaced, delete it.
-    try {
-      fs.unlinkSync(outFile + '.map');
-    } catch (ex) {
-
-      // ignore if file didn't exist
-    }});
+`
+    );
+  });
 }
 //# sourceMappingURL=gen_listings.js.map

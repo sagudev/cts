@@ -14,8 +14,8 @@ desc('Test that flow control executes the correct switch case block').
 params((u) => u.combine('preventValueOptimizations', [true, false])).
 fn((t) => {
   runFlowControlTest(
-  t,
-  (f) => `
+    t,
+    (f) => `
   ${f.expect_order(0)}
   switch (${f.value(1)}) {
     case 0: {
@@ -36,19 +36,19 @@ fn((t) => {
     }
   }
   ${f.expect_order(2)}
-`);
-
+`
+  );
 });
 
 g.test('switch_multiple_case').
 desc(
-'Test that flow control executes the correct switch case block with multiple cases per block').
-
+  'Test that flow control executes the correct switch case block with multiple cases per block'
+).
 params((u) => u.combine('preventValueOptimizations', [true, false])).
 fn((t) => {
   runFlowControlTest(
-  t,
-  (f) => `
+    t,
+    (f) => `
   ${f.expect_order(0)}
   switch (${f.value(2)}) {
     case 0, 1: {
@@ -65,19 +65,19 @@ fn((t) => {
     }
   }
   ${f.expect_order(2)}
-`);
-
+`
+  );
 });
 
 g.test('switch_multiple_case_default').
 desc(
-'Test that flow control executes the correct switch case block with multiple cases per block (combined with default)').
-
+  'Test that flow control executes the correct switch case block with multiple cases per block (combined with default)'
+).
 params((u) => u.combine('preventValueOptimizations', [true, false])).
 fn((t) => {
   runFlowControlTest(
-  t,
-  (f) => `
+    t,
+    (f) => `
   ${f.expect_order(0)}
   switch (${f.value(2)}) {
     case 0, 1: {
@@ -101,8 +101,8 @@ fn((t) => {
     }
   }
   ${f.expect_order(4)}
-`);
-
+`
+  );
 });
 
 g.test('switch_default').
@@ -110,8 +110,8 @@ desc('Test that flow control executes the switch default block').
 params((u) => u.combine('preventValueOptimizations', [true, false])).
 fn((t) => {
   runFlowControlTest(
-  t,
-  (f) => `
+    t,
+    (f) => `
 ${f.expect_order(0)}
 switch (${f.value(4)}) {
   case 0: {
@@ -132,8 +132,8 @@ switch (${f.value(4)}) {
   }
 }
 ${f.expect_order(2)}
-`);
-
+`
+  );
 });
 
 g.test('switch_default_only').
@@ -141,8 +141,8 @@ desc('Test that flow control executes the switch default block, which is the onl
 params((u) => u.combine('preventValueOptimizations', [true, false])).
 fn((t) => {
   runFlowControlTest(
-  t,
-  (f) => `
+    t,
+    (f) => `
 ${f.expect_order(0)}
 switch (${f.value(4)}) {
 default: {
@@ -151,7 +151,40 @@ default: {
 }
 }
 ${f.expect_order(2)}
-`);
+`
+  );
+});
 
+g.test('switch_inside_loop_with_continue').
+desc('Test that flow control executes correct for a switch calling continue inside a loop').
+params((u) => u.combine('preventValueOptimizations', [true, false])).
+fn((t) => {
+  runFlowControlTest(
+    t,
+    (f) => `
+${f.expect_order(0)}
+var i = ${f.value(0)};
+loop {
+  switch (i) {
+    case 1: {
+      ${f.expect_order(4)}
+      continue;
+    }
+    default: {
+      ${f.expect_order(1)}
+      break;
+    }
+  }
+  ${f.expect_order(2)}
+
+  continuing {
+    ${f.expect_order(3, 5)}
+    i++;
+    break if i >= 2;
+  }
+}
+${f.expect_order(6)}
+`
+  );
 });
 //# sourceMappingURL=switch.spec.js.map

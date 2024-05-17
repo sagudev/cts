@@ -10,7 +10,7 @@ Reverses the bits in e: The bit at position k of the result equals the bit at po
 Component-wise when T is a vector.
 `;import { makeTestGroup } from '../../../../../../common/framework/test_group.js';
 import { GPUTest } from '../../../../../gpu_test.js';
-import { TypeU32, u32Bits, TypeI32, i32Bits } from '../../../../../util/conversion.js';
+import { u32Bits, i32Bits, Type } from '../../../../../util/conversion.js';
 import { allInputSources, run } from '../../expression.js';
 
 import { builtin } from './builtin.js';
@@ -21,12 +21,12 @@ g.test('u32').
 specURL('https://www.w3.org/TR/WGSL/#integer-builtin-functions').
 desc(`u32 tests`).
 params((u) =>
-u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])).
-
+u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])
+).
 fn(async (t) => {
   const cfg = t.params;
 
-  await run(t, builtin('reverseBits'), [TypeU32], TypeU32, cfg, [
+  await run(t, builtin('reverseBits'), [Type.u32], Type.u32, cfg, [
   // Zero
   { input: u32Bits(0b00000000000000000000000000000000), expected: u32Bits(0b00000000000000000000000000000000) },
 
@@ -129,20 +129,20 @@ fn(async (t) => {
   { input: u32Bits(0b00011110101111011111111111111111), expected: u32Bits(0b11111111111111111011110101111000) },
   { input: u32Bits(0b00110110111111100111111110111101), expected: u32Bits(0b10111101111111100111111101101100) },
   { input: u32Bits(0b01010111111101111111011111011111), expected: u32Bits(0b11111011111011111110111111101010) },
-  { input: u32Bits(0b11100010011110101101101110101111), expected: u32Bits(0b11110101110110110101111001000111) }]);
-
+  { input: u32Bits(0b11100010011110101101101110101111), expected: u32Bits(0b11110101110110110101111001000111) }]
+  );
 });
 
 g.test('i32').
 specURL('https://www.w3.org/TR/2021/WD-WGSL-20210929/#integer-builtin-functions').
 desc(`i32 tests`).
 params((u) =>
-u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])).
-
+u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])
+).
 fn(async (t) => {
   const cfg = t.params;
 
-  await run(t, builtin('reverseBits'), [TypeI32], TypeI32, cfg, [
+  await run(t, builtin('reverseBits'), [Type.i32], Type.i32, cfg, [
   // Zero
   { input: i32Bits(0b00000000000000000000000000000000), expected: i32Bits(0b00000000000000000000000000000000) },
 
@@ -245,7 +245,7 @@ fn(async (t) => {
   { input: i32Bits(0b00011110101111011111111111111111), expected: i32Bits(0b11111111111111111011110101111000) },
   { input: i32Bits(0b00110110111111100111111110111101), expected: i32Bits(0b10111101111111100111111101101100) },
   { input: i32Bits(0b01010111111101111111011111011111), expected: i32Bits(0b11111011111011111110111111101010) },
-  { input: i32Bits(0b11100010011110101101101110101111), expected: i32Bits(0b11110101110110110101111001000111) }]);
-
+  { input: i32Bits(0b11100010011110101101101110101111), expected: i32Bits(0b11110101110110110101111001000111) }]
+  );
 });
 //# sourceMappingURL=reverseBits.spec.js.map

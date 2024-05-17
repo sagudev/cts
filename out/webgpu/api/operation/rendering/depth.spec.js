@@ -26,23 +26,23 @@ class DepthTest extends TextureTestMixin(GPUTest) {
     const renderTargetFormat = 'rgba8unorm';
 
     const renderTarget = this.trackForCleanup(
-    this.device.createTexture({
-      format: renderTargetFormat,
-      size: { width: 1, height: 1, depthOrArrayLayers: 1 },
-      usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT
-    }));
-
+      this.device.createTexture({
+        format: renderTargetFormat,
+        size: { width: 1, height: 1, depthOrArrayLayers: 1 },
+        usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT
+      })
+    );
 
     const depthStencilFormat = 'depth24plus-stencil8';
     const depthTexture = this.trackForCleanup(
-    this.device.createTexture({
-      size: { width: 1, height: 1, depthOrArrayLayers: 1 },
-      format: depthStencilFormat,
-      sampleCount: 1,
-      mipLevelCount: 1,
-      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST
-    }));
-
+      this.device.createTexture({
+        size: { width: 1, height: 1, depthOrArrayLayers: 1 },
+        format: depthStencilFormat,
+        sampleCount: 1,
+        mipLevelCount: 1,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST
+      })
+    );
 
     const depthStencilAttachment = {
       view: depthTexture.createView(),
@@ -57,8 +57,8 @@ class DepthTest extends TextureTestMixin(GPUTest) {
       colorAttachments: [
       {
         view: renderTarget.createView(),
-        storeOp: 'store',
-        loadOp: 'load'
+        loadOp: 'load',
+        storeOp: 'store'
       }],
 
       depthStencilAttachment
@@ -69,9 +69,9 @@ class DepthTest extends TextureTestMixin(GPUTest) {
       const testPipeline = this.createRenderPipelineForTest(test.state, test.depth);
       pass.setPipeline(testPipeline);
       pass.setBindGroup(
-      0,
-      this.createBindGroupForTest(testPipeline.getBindGroupLayout(0), test.color));
-
+        0,
+        this.createBindGroupForTest(testPipeline.getBindGroupLayout(0), test.color)
+      );
       pass.draw(1);
     }
 
@@ -84,7 +84,7 @@ class DepthTest extends TextureTestMixin(GPUTest) {
       B: expectedColor[2],
       A: expectedColor[3]
     };
-    const expTexelView = TexelView.fromTexelsAsColors(renderTargetFormat, (coords) => expColor);
+    const expTexelView = TexelView.fromTexelsAsColors(renderTargetFormat, (_coords) => expColor);
 
     this.expectTexelViewComparisonIsOkInTexture({ texture: renderTarget }, expTexelView, [1, 1]);
   }
@@ -172,22 +172,22 @@ fn((t) => {
 
 g.test('depth_write_disabled').
 desc(
-`
+  `
   Test that depthWriteEnabled behaves as expected.
   If enabled, a depth value of 0.0 is written.
   If disabled, it's not written, so it keeps the previous value of 1.0.
   Use a depthCompare: 'equal' check at the end to check the value.
-  `).
-
+  `
+).
 params((u) =>
 u //
 .combineWithParams([
 { depthWriteEnabled: false, lastDepth: 0.0, _expectedColor: kRedStencilColor },
 { depthWriteEnabled: true, lastDepth: 0.0, _expectedColor: kGreenStencilColor },
 { depthWriteEnabled: false, lastDepth: 1.0, _expectedColor: kGreenStencilColor },
-{ depthWriteEnabled: true, lastDepth: 1.0, _expectedColor: kRedStencilColor }])).
-
-
+{ depthWriteEnabled: true, lastDepth: 1.0, _expectedColor: kRedStencilColor }]
+)
+).
 fn((t) => {
   const { depthWriteEnabled, lastDepth, _expectedColor } = t.params;
 
@@ -244,19 +244,19 @@ fn((t) => {
 
 g.test('depth_test_fail').
 desc(
-`
+  `
   Test that render results on depth test failure cases with 'less' depthCompare operation and
   depthWriteEnabled is true.
-  `).
-
+  `
+).
 params((u) =>
 u //
 .combineWithParams([
 { secondDepth: 1.0, lastDepth: 2.0, _expectedColor: kBaseColor }, // fail -> fail.
 { secondDepth: 0.0, lastDepth: 2.0, _expectedColor: kRedStencilColor }, // pass -> fail.
 { secondDepth: 2.0, lastDepth: 0.9, _expectedColor: kGreenStencilColor } // fail -> pass.
-])).
-
+])
+).
 fn((t) => {
   const { secondDepth, lastDepth, _expectedColor } = t.params;
 
@@ -293,14 +293,14 @@ const kMiddleDepthValue = 0.5001;
 
 g.test('depth_compare_func').
 desc(
-`Tests each depth compare function works properly. Clears the depth attachment to various values, and renders a point at depth 0.5 with various depthCompare modes.`).
-
+  `Tests each depth compare function works properly. Clears the depth attachment to various values, and renders a point at depth 0.5 with various depthCompare modes.`
+).
 params((u) =>
 u.
 combine(
-'format',
-kDepthStencilFormats.filter((format) => kTextureFormatInfo[format].depth)).
-
+  'format',
+  kDepthStencilFormats.filter((format) => kTextureFormatInfo[format].depth)
+).
 combineWithParams([
 { depthCompare: 'never', depthClearValue: 1.0, _expected: backgroundColor },
 { depthCompare: 'never', depthClearValue: kMiddleDepthValue, _expected: backgroundColor },
@@ -337,9 +337,9 @@ combineWithParams([
 { depthCompare: 'greater', depthClearValue: 0.0, _expected: triangleColor },
 { depthCompare: 'always', depthClearValue: 1.0, _expected: triangleColor },
 { depthCompare: 'always', depthClearValue: kMiddleDepthValue, _expected: triangleColor },
-{ depthCompare: 'always', depthClearValue: 0.0, _expected: triangleColor }])).
-
-
+{ depthCompare: 'always', depthClearValue: 0.0, _expected: triangleColor }]
+)
+).
 beforeAllSubcases((t) => {
   t.selectDeviceForTextureFormatOrSkipTestCase(t.params.format);
 }).
@@ -410,9 +410,9 @@ fn((t) => {
     colorAttachments: [
     {
       view: colorAttachmentView,
-      storeOp: 'store',
       clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-      loadOp: 'clear'
+      loadOp: 'clear',
+      storeOp: 'store'
     }],
 
     depthStencilAttachment
@@ -426,16 +426,16 @@ fn((t) => {
   {
     coord: { x: 0, y: 0 },
     exp: new Uint8Array(_expected)
-  }]);
-
+  }]
+  );
 });
 
 g.test('reverse_depth').
 desc(
-`Tests simple rendering with reversed depth buffer, ensures depth test works properly: fragments are in correct order and out of range fragments are clipped.
+  `Tests simple rendering with reversed depth buffer, ensures depth test works properly: fragments are in correct order and out of range fragments are clipped.
     Note that in real use case the depth range remapping is done by the modified projection matrix.
-(see https://developer.nvidia.com/content/depth-precision-visualized).`).
-
+(see https://developer.nvidia.com/content/depth-precision-visualized).`
+).
 params((u) => u.combine('reversed', [false, true])).
 fn((t) => {
   const colorAttachmentFormat = 'rgba8unorm';
@@ -467,13 +467,8 @@ fn((t) => {
             @vertex fn main(
               @builtin(vertex_index) VertexIndex : u32,
               @builtin(instance_index) InstanceIndex : u32) -> Output {
-              // TODO: remove workaround for Tint unary array access broke
-              var zv : array<vec2<f32>, 4> = array<vec2<f32>, 4>(
-                  vec2<f32>(0.2, 0.2),
-                  vec2<f32>(0.3, 0.3),
-                  vec2<f32>(-0.1, -0.1),
-                  vec2<f32>(1.1, 1.1));
-              let z : f32 = zv[InstanceIndex].x;
+              let zv = array(0.2, 0.3, -0.1, 1.1);
+              let z = zv[InstanceIndex];
 
               var output : Output;
               output.Position = vec4<f32>(0.5, 0.5, z, 1.0);
@@ -517,9 +512,9 @@ fn((t) => {
     colorAttachments: [
     {
       view: colorAttachmentView,
-      storeOp: 'store',
       clearValue: { r: 0.5, g: 0.5, b: 0.5, a: 1.0 },
-      loadOp: 'clear'
+      loadOp: 'clear',
+      storeOp: 'store'
     }],
 
     depthStencilAttachment: {
@@ -539,9 +534,9 @@ fn((t) => {
   {
     coord: { x: 0, y: 0 },
     exp: new Uint8Array(
-    t.params.reversed ? [0x00, 0xff, 0x00, 0xff] : [0xff, 0x00, 0x00, 0xff])
-
-  }]);
-
+      t.params.reversed ? [0x00, 0xff, 0x00, 0xff] : [0xff, 0x00, 0x00, 0xff]
+    )
+  }]
+  );
 });
 //# sourceMappingURL=depth.spec.js.map

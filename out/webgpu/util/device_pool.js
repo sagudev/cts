@@ -1,13 +1,18 @@
 /**
 * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
-**/import { SkipTestCase } from '../../common/framework/fixture.js';import { attemptGarbageCollection } from '../../common/util/collect_garbage.js';import { getGPU } from '../../common/util/navigator_gpu.js';
+**/import { SkipTestCase } from '../../common/framework/fixture.js';import { attemptGarbageCollection } from '../../common/util/collect_garbage.js';import { getGPU, getDefaultRequestAdapterOptions } from '../../common/util/navigator_gpu.js';
 import {
-assert,
-raceWithRejectOnTimeout,
-assertReject,
-unreachable } from
+  assert,
+  raceWithRejectOnTimeout,
+  assertReject,
+  unreachable } from
 '../../common/util/util.js';
-import { kLimitInfo, kLimits } from '../capability_info.js';
+import { getDefaultLimits, kLimits } from '../capability_info.js';
+
+// MUST_NOT_BE_IMPORTED_BY_DATA_CACHE
+// This file should not be transitively imported by .cache.ts files
+
+
 
 
 
@@ -22,12 +27,15 @@ export class DevicePool {
   holders = 'uninitialized';
 
   /** Acquire a device from the pool and begin the error scopes. */
-  async acquire(descriptor) {
+  async acquire(
+  recorder,
+  descriptor)
+  {
     let errorMessage = '';
     if (this.holders === 'uninitialized') {
       this.holders = new DescriptorToHolderMap();
       try {
-        await this.holders.getOrCreate(undefined);
+        await this.holders.getOrCreate(recorder, undefined);
       } catch (ex) {
         this.holders = 'failed';
         if (ex instanceof Error) {
@@ -37,11 +45,11 @@ export class DevicePool {
     }
 
     assert(
-    this.holders !== 'failed',
-    `WebGPU device failed to initialize${errorMessage}; not retrying`);
+      this.holders !== 'failed',
+      `WebGPU device failed to initialize${errorMessage}; not retrying`
+    );
 
-
-    const holder = await this.holders.getOrCreate(descriptor);
+    const holder = await this.holders.getOrCreate(recorder, descriptor);
 
     assert(holder.state === 'free', 'Device was in use on DevicePool.acquire');
     holder.state = 'acquired';
@@ -65,9 +73,9 @@ export class DevicePool {
       // has finished (or timed out). If not, it could cause a finite number of extra test
       // failures following this one (but should recover eventually).)
       assert(
-      holder.lostInfo === undefined,
-      `Device was unexpectedly lost. Reason: ${holder.lostInfo?.reason}, Message: ${holder.lostInfo?.message}`);
-
+        holder.lostInfo === undefined,
+        `Device was unexpectedly lost. Reason: ${holder.lostInfo?.reason}, Message: ${holder.lostInfo?.message}`
+      );
     } catch (ex) {
       // Any error that isn't explicitly TestFailedButDeviceReusable forces a new device to be
       // created for the next test.
@@ -132,14 +140,15 @@ class DescriptorToHolderMap {
    * Throws SkipTestCase if devices with this descriptor are unsupported.
    */
   async getOrCreate(
+  recorder,
   uncanonicalizedDescriptor)
   {
     const [descriptor, key] = canonicalizeDescriptor(uncanonicalizedDescriptor);
     // Quick-reject descriptors that are known to be unsupported already.
     if (this.unsupported.has(key)) {
       throw new SkipTestCase(
-      `GPUDeviceDescriptor previously failed: ${JSON.stringify(descriptor)}`);
-
+        `GPUDeviceDescriptor previously failed: ${JSON.stringify(descriptor)}`
+      );
     }
 
     // Search for an existing device with the same descriptor.
@@ -156,13 +165,13 @@ class DescriptorToHolderMap {
     // No existing item was found; add a new one.
     let value;
     try {
-      value = await DeviceHolder.create(descriptor);
+      value = await DeviceHolder.create(recorder, descriptor);
     } catch (ex) {
       if (ex instanceof FeaturesNotSupported) {
         this.unsupported.add(key);
         throw new SkipTestCase(
-        `GPUDeviceDescriptor not supported: ${JSON.stringify(descriptor)}\n${ex?.message ?? ''}`);
-
+          `GPUDeviceDescriptor not supported: ${JSON.stringify(descriptor)}\n${ex?.message ?? ''}`
+        );
       }
 
       throw ex;
@@ -225,10 +234,16 @@ desc)
   /** Canonicalized version of the requested limits: in canonical order, with only values which are
    * specified _and_ non-default. */
   const limitsCanonicalized = {};
+  // MAINTENANCE_TODO: Remove cast when @webgpu/types includes compatibilityMode
+  const adapterOptions = getDefaultRequestAdapterOptions();
+
+
+  const featureLevel = adapterOptions?.compatibilityMode ? 'compatibility' : 'core';
+  const defaultLimits = getDefaultLimits(featureLevel);
   if (desc.requiredLimits) {
     for (const limit of kLimits) {
       const requestedValue = desc.requiredLimits[limit];
-      const defaultValue = kLimitInfo[limit].default;
+      const defaultValue = defaultLimits[limit].default;
       // Skip adding a limit to limitsCanonicalized if it is the same as the default.
       if (requestedValue !== undefined && requestedValue !== defaultValue) {
         limitsCanonicalized[limit] = requestedValue;
@@ -273,19 +288,24 @@ descriptor)
  * Holds a GPUDevice and tracks its state (free/acquired) and handles device loss.
  */
 class DeviceHolder {
+  /** Adapter the device was created from. Cannot be reused; just for adapter info. */
+
   /** The device. Will be cleared during cleanup if there were unexpected errors. */
 
   /** Whether the device is in use by a test or not. */
   state = 'free';
   /** initially undefined; becomes set when the device is lost */
 
-
+  /** Set if the device is expected to be lost. */
 
 
   // Gets a device and creates a DeviceHolder.
   // If the device is lost, DeviceHolder.lost gets set.
-  static async create(descriptor) {
-    const gpu = getGPU();
+  static async create(
+  recorder,
+  descriptor)
+  {
+    const gpu = getGPU(recorder);
     const adapter = await gpu.requestAdapter();
     assert(adapter !== null, 'requestAdapter returned null');
     if (!supportsFeature(adapter, descriptor)) {
@@ -294,10 +314,11 @@ class DeviceHolder {
     const device = await adapter.requestDevice(descriptor);
     assert(device !== null, 'requestDevice returned null');
 
-    return new DeviceHolder(device);
+    return new DeviceHolder(adapter, device);
   }
 
-  constructor(device) {
+  constructor(adapter, device) {
+    this.adapter = adapter;
     this._device = device;
     void this._device.lost.then((ev) => {
       this.lostInfo = ev;
@@ -353,8 +374,8 @@ class DeviceHolder {
       [gpuOutOfMemoryError, gpuInternalError, gpuValidationError] = await Promise.all([
       this.device.popErrorScope(),
       this.device.popErrorScope(),
-      this.device.popErrorScope()]);
-
+      this.device.popErrorScope()]
+      );
     } catch (ex) {
       assert(this.lostInfo !== undefined, 'popErrorScope failed; did beginTestScope get missed?');
       throw ex;
@@ -365,10 +386,10 @@ class DeviceHolder {
       await this.device.queue.onSubmittedWorkDone();
     }
 
-    await assertReject(
-    this.device.popErrorScope(),
-    'There was an extra error scope on the stack after a test');
-
+    await assertReject('OperationError', this.device.popErrorScope(), {
+      allowMissingStack: true,
+      message: 'There was an extra error scope on the stack after a test'
+    });
 
     if (gpuOutOfMemoryError !== null) {
       assert(gpuOutOfMemoryError instanceof GPUOutOfMemoryError);
@@ -379,15 +400,15 @@ class DeviceHolder {
       assert(gpuInternalError instanceof GPUInternalError);
       // Allow the device to be reused.
       throw new TestFailedButDeviceReusable(
-      `Unexpected internal error occurred: ${gpuInternalError.message}`);
-
+        `Unexpected internal error occurred: ${gpuInternalError.message}`
+      );
     }
     if (gpuValidationError !== null) {
       assert(gpuValidationError instanceof GPUValidationError);
       // Allow the device to be reused.
       throw new TestFailedButDeviceReusable(
-      `Unexpected validation error occurred: ${gpuValidationError.message}`);
-
+        `Unexpected validation error occurred: ${gpuValidationError.message}`
+      );
     }
   }
 

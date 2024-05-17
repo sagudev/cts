@@ -100,9 +100,16 @@ g.test('texture_binding')
       .combine('format', kRegularTextureFormats)
       .combine('viewFormat', kRegularTextureFormats)
       .filter(
-        ({ format, viewFormat }) => format !== viewFormat && viewCompatible(format, viewFormat)
+        ({ format, viewFormat }) =>
+          format !== viewFormat && viewCompatible(false, format, viewFormat)
       )
   )
+  .beforeAllSubcases(t => {
+    const { format, viewFormat } = t.params;
+    t.skipIfTextureFormatNotSupported(format, viewFormat);
+    // Compatibility mode does not support format reinterpretation.
+    t.skipIf(t.isCompatibility);
+  })
   .fn(t => {
     const { format, viewFormat } = t.params;
 
@@ -196,10 +203,17 @@ in view format and match in base format.`
       .combine('format', kRenderableColorTextureFormats)
       .combine('viewFormat', kRenderableColorTextureFormats)
       .filter(
-        ({ format, viewFormat }) => format !== viewFormat && viewCompatible(format, viewFormat)
+        ({ format, viewFormat }) =>
+          format !== viewFormat && viewCompatible(false, format, viewFormat)
       )
       .combine('sampleCount', [1, 4])
   )
+  .beforeAllSubcases(t => {
+    const { format, viewFormat } = t.params;
+    t.skipIfTextureFormatNotSupported(format, viewFormat);
+    // Compatibility mode does not support format reinterpretation.
+    t.skipIf(t.isCompatibility);
+  })
   .fn(t => {
     const { format, viewFormat, sampleCount } = t.params;
 

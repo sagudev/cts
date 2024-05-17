@@ -1,6 +1,7 @@
 /**
 * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
 **/export const description = `Validation tests for entry point built-in variables`;import { makeTestGroup } from '../../../../common/framework/test_group.js';
+import { keysOf } from '../../../../common/util/data_tables.js';
 import { ShaderValidationTest } from '../shader_validation_test.js';
 
 import { generateShader } from './util.js';
@@ -65,16 +66,16 @@ const kTestTypes = [
 
 g.test('stage_inout').
 desc(
-`Test that each @builtin attribute is validated against the required stage and in/out usage for that built-in variable.`).
-
+  `Test that each @builtin attribute is validated against the required stage and in/out usage for that built-in variable.`
+).
 params((u) =>
 u.
 combineWithParams(kBuiltins).
 combine('use_struct', [true, false]).
 combine('target_stage', ['', 'vertex', 'fragment', 'compute']).
 combine('target_io', ['in', 'out']).
-beginSubcases()).
-
+beginSubcases()
+).
 fn((t) => {
   const code = generateShader({
     attribute: `@builtin(${t.params.name})`,
@@ -86,27 +87,27 @@ fn((t) => {
 
   // Expect to pass iff the built-in table contains an entry that matches.
   const expectation = kBuiltins.some(
-  (x) =>
-  x.name === t.params.name && (
-  x.stage === t.params.target_stage ||
-  t.params.use_struct && t.params.target_stage === '') && (
-  x.io === t.params.target_io || t.params.target_stage === '') &&
-  x.type === t.params.type);
-
+    (x) =>
+    x.name === t.params.name && (
+    x.stage === t.params.target_stage ||
+    t.params.use_struct && t.params.target_stage === '') && (
+    x.io === t.params.target_io || t.params.target_stage === '') &&
+    x.type === t.params.type
+  );
   t.expectCompileResult(expectation, code);
 });
 
 g.test('type').
 desc(
-`Test that each @builtin attribute is validated against the required type of that built-in variable.`).
-
+  `Test that each @builtin attribute is validated against the required type of that built-in variable.`
+).
 params((u) =>
 u.
 combineWithParams(kBuiltins).
-combine('use_struct', [true, false]).
+beginSubcases().
 combine('target_type', kTestTypes).
-beginSubcases()).
-
+combine('use_struct', [true, false])
+).
 fn((t) => {
   let code = '';
 
@@ -127,12 +128,12 @@ fn((t) => {
 
   // Expect to pass iff the built-in table contains an entry that matches.
   const expectation = kBuiltins.some(
-  (x) =>
-  x.name === t.params.name &&
-  x.stage === t.params.stage &&
-  x.io === t.params.io &&
-  x.type === t.params.target_type);
-
+    (x) =>
+    x.name === t.params.name &&
+    x.stage === t.params.stage &&
+    x.io === t.params.io &&
+    x.type === t.params.target_type
+  );
   t.expectCompileResult(expectation, code);
 });
 
@@ -142,8 +143,8 @@ params((u) =>
 u.
 combine('target_stage', ['fragment', '']).
 combine('target_io', ['in', 'out']).
-beginSubcases()).
-
+beginSubcases()
+).
 fn((t) => {
   // Generate a struct that contains a sample_mask builtin, nested inside another struct.
   let code = `
@@ -179,8 +180,8 @@ u
 // By default, all of these variables will have unique @location() attributes.
 .combine('first', ['p1', 's1a', 's2a', 'ra']).
 combine('second', ['p2', 's1b', 's2b', 'rb']).
-beginSubcases()).
-
+beginSubcases()
+).
 fn((t) => {
   const p1 =
   t.params.first === 'p1' ? '@builtin(sample_mask)' : '@location(1) @interpolate(flat)';
@@ -235,8 +236,8 @@ params((u) =>
 u.
 combine('use_struct', [true, false]).
 combine('attribute', ['@builtin(position)', '@location(0)']).
-beginSubcases()).
-
+beginSubcases()
+).
 fn((t) => {
   const code = `
     struct S {
@@ -258,8 +259,8 @@ desc(`Test that a builtin name can be used in different contexts`).
 params((u) =>
 u.
 combineWithParams(kBuiltins).
-combine('use', ['alias', 'struct', 'function', 'module-var', 'function-var'])).
-
+combine('use', ['alias', 'struct', 'function', 'module-var', 'function-var'])
+).
 fn((t) => {
   let code = '';
   if (t.params.use === 'alias') {
@@ -274,5 +275,146 @@ fn((t) => {
     code += `fn test() { let ${t.params.name} = 1; }`;
   }
   t.expectCompileResult(true, code);
+});
+
+const kTests = {
+  pos: {
+    src: `@builtin(position)`,
+    pass: true
+  },
+  trailing_comma: {
+    src: `@builtin(position,)`,
+    pass: true
+  },
+  newline_in_attr: {
+    src: `@ \n builtin(position)`,
+    pass: true
+  },
+  whitespace_in_attr: {
+    src: `@/* comment */builtin/* comment */\n\n(\t/*comment*/position/*comment*/)`,
+    pass: true
+  },
+  invalid_name: {
+    src: `@abuiltin(position)`,
+    pass: false
+  },
+  no_params: {
+    src: `@builtin`,
+    pass: false
+  },
+  missing_param: {
+    src: `@builtin()`,
+    pass: false
+  },
+  missing_parens: {
+    src: `@builtin position`,
+    pass: false
+  },
+  missing_lparen: {
+    src: `@builtin position)`,
+    pass: false
+  },
+  missing_rparen: {
+    src: `@builtin(position`,
+    pass: false
+  },
+  multiple_params: {
+    src: `@builtin(position, frag_depth)`,
+    pass: false
+  },
+  ident_param: {
+    src: `@builtin(identifier)`,
+    pass: false
+  },
+  number_param: {
+    src: `@builtin(2)`,
+    pass: false
+  },
+  duplicate: {
+    src: `@builtin(position) @builtin(position)`,
+    pass: false
+  }
+};
+
+g.test('parse').
+desc(`Test that @builtin is parsed correctly.`).
+params((u) => u.combine('builtin', keysOf(kTests))).
+fn((t) => {
+  const src = kTests[t.params.builtin].src;
+  const code = `
+@vertex
+fn main() -> ${src} vec4<f32> {
+  return vec4<f32>(.4, .2, .3, .1);
+}`;
+  t.expectCompileResult(kTests[t.params.builtin].pass, code);
+});
+
+g.test('placement').
+desc('Tests the locations @builtin is allowed to appear').
+params((u) =>
+u.
+combine('scope', [
+// The fn-param and fn-ret are part of the shader_io/builtins tests
+'private-var',
+'storage-var',
+'struct-member',
+'non-ep-param',
+'non-ep-ret',
+'fn-decl',
+'fn-var',
+'while-stmt',
+undefined]
+).
+combine('attribute', [
+{
+  'private-var': false,
+  'storage-var': false,
+  'struct-member': true,
+  'non-ep-param': false,
+  'non-ep-ret': false,
+  'fn-decl': false,
+  'fn-var': false,
+  'fn-return': false,
+  'while-stmt': false
+}]
+).
+beginSubcases()
+).
+fn((t) => {
+  const scope = t.params.scope;
+
+  const attr = '@builtin(vertex_index)';
+  const code = `
+      ${scope === 'private-var' ? attr : ''}
+      var<private> priv_var : u32;
+
+      ${scope === 'storage-var' ? attr : ''}
+      @group(0) @binding(0)
+      var<storage> stor_var : u32;
+
+      struct A {
+        ${scope === 'struct-member' ? attr : ''}
+        a : u32,
+      }
+
+      fn v(${scope === 'non-ep-param' ? attr : ''} i : u32) ->
+            ${scope === 'non-ep-ret' ? attr : ''} u32 { return 1; }
+
+      @vertex
+      ${scope === 'fn-decl' ? attr : ''}
+      fn f(
+        @location(0) b : u32,
+      ) -> @builtin(position) vec4f {
+        ${scope === 'fn-var' ? attr : ''}
+        var<function> func_v : u32;
+
+        ${scope === 'while-stmt' ? attr : ''}
+        while false {}
+
+        return vec4(1, 1, 1, 1);
+      }
+    `;
+
+  t.expectCompileResult(scope === undefined || t.params.attribute[scope], code);
 });
 //# sourceMappingURL=builtins.spec.js.map

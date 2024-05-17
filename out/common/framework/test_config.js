@@ -12,10 +12,40 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export const globalTestConfig = {
+  enableDebugLogs: false,
   maxSubcasesInFlight: 500,
   testHeartbeatCallback: () => {},
   noRaceWithRejectOnTimeout: false,
-  unrollConstEvalLoops: false
+  unrollConstEvalLoops: false,
+  compatibility: false,
+  forceFallbackAdapter: false,
+  logToWebSocket: false
 };
 //# sourceMappingURL=test_config.js.map

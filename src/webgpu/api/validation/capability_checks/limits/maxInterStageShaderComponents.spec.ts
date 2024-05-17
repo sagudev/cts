@@ -1,10 +1,6 @@
-import { assert, range } from '../../../../../common/util/util.js';
+import { range } from '../../../../../common/util/util.js';
 
-import { kMaximumLimitBaseParams, makeLimitTestGroup } from './limit_utils.js';
-
-function getTypeForNumComponents(numComponents: number) {
-  return numComponents > 1 ? `vec${numComponents}f` : 'f32';
-}
+import { kMaximumLimitBaseParams, LimitsRequest, makeLimitTestGroup } from './limit_utils.js';
 
 function getPipelineDescriptor(
   device: GPUDevice,
@@ -15,39 +11,40 @@ function getPipelineDescriptor(
   sampleMaskIn: boolean,
   sampleMaskOut: boolean
 ): { pipelineDescriptor: GPURenderPipelineDescriptor; code: string } {
-  const maxVertexShaderOutputComponents = testValue - (pointList ? 1 : 0);
-  const maxFragmentShaderInputComponents =
-    testValue - (frontFacing ? 1 : 0) - (sampleIndex ? 1 : 0) - (sampleMaskIn ? 1 : 0);
+  const success = testValue <= device.limits.maxInterStageShaderComponents;
 
-  const maxInterStageVariables = device.limits.maxInterStageShaderVariables;
-  const numComponents = Math.min(maxVertexShaderOutputComponents, maxFragmentShaderInputComponents);
-  assert(Math.ceil(numComponents / 4) <= maxInterStageVariables);
+  const maxVertexOutputComponents =
+    device.limits.maxInterStageShaderComponents - (pointList ? 1 : 0);
+  const maxFragmentInputComponents =
+    device.limits.maxInterStageShaderComponents -
+    (frontFacing ? 1 : 0) -
+    (sampleIndex ? 1 : 0) -
+    (sampleMaskIn ? 1 : 0);
+  const maxOutputComponents = Math.min(maxVertexOutputComponents, maxFragmentInputComponents);
+  const maxInterStageVariables = Math.floor(maxOutputComponents / 4);
+  const maxUserDefinedVertexComponents = Math.floor(maxVertexOutputComponents / 4) * 4;
+  const maxUserDefinedFragmentComponents = Math.floor(maxFragmentInputComponents / 4) * 4;
 
-  const num4ComponentVaryings = Math.floor(numComponents / 4);
-  const lastVaryingNumComponents = numComponents % 4;
+  const numInterStageVariables = success ? maxInterStageVariables : maxInterStageVariables + 1;
+  const numUserDefinedComponents = numInterStageVariables * 4;
 
   const varyings = `
-      ${range(num4ComponentVaryings, i => `@location(${i}) v4_${i}: vec4f,`).join('\n')}
-      ${
-        lastVaryingNumComponents > 0
-          ? `@location(${num4ComponentVaryings}) vx: ${getTypeForNumComponents(
-              lastVaryingNumComponents
-            )},`
-          : ``
-      }
+      ${range(numInterStageVariables, i => `@location(${i}) v4_${i}: vec4f,`).join('\n')}
   `;
 
   const code = `
     // test value                        : ${testValue}
     // maxInterStageShaderComponents     : ${device.limits.maxInterStageShaderComponents}
-    // num components in vertex shader   : ${numComponents}${pointList ? ' + point-list' : ''}
-    // num components in fragment shader : ${numComponents}${frontFacing ? ' + front-facing' : ''}${
-    sampleIndex ? ' + sample_index' : ''
-  }${sampleMaskIn ? ' + sample_mask' : ''}
-    // maxVertexShaderOutputComponents   : ${maxVertexShaderOutputComponents}
-    // maxFragmentShaderInputComponents  : ${maxFragmentShaderInputComponents}
+    // num components in vertex shader   : ${numUserDefinedComponents}${
+      pointList ? ' + point-list' : ''
+    }
+    // num components in fragment shader : ${numUserDefinedComponents}${
+      frontFacing ? ' + front-facing' : ''
+    }${sampleIndex ? ' + sample_index' : ''}${sampleMaskIn ? ' + sample_mask' : ''}
+    // maxUserDefinedVertexShaderOutputComponents   : ${maxUserDefinedVertexComponents}
+    // maxUserDefinedFragmentShaderInputComponents  : ${maxUserDefinedFragmentComponents}
     // maxInterStageVariables:           : ${maxInterStageVariables}
-    // num used inter stage variables    : ${Math.ceil(numComponents / 4)}
+    // num used inter stage variables    : ${numInterStageVariables}
 
     struct VSOut {
       @builtin(position) p: vec4f,
@@ -111,6 +108,15 @@ g.test('createRenderPipeline,at_over')
       .combine('sampleMaskIn', [false, true])
       .combine('sampleMaskOut', [false, true])
   )
+  .beforeAllSubcases(t => {
+    if (t.isCompatibility) {
+      t.skipIf(
+        t.params.sampleMaskIn || t.params.sampleMaskOut,
+        'sample_mask not supported in compatibility mode'
+      );
+      t.skipIf(t.params.sampleIndex, 'sample_index not supported in compatibility mode');
+    }
+  })
   .fn(async t => {
     const {
       limitTest,
@@ -122,6 +128,10 @@ g.test('createRenderPipeline,at_over')
       sampleMaskIn,
       sampleMaskOut,
     } = t.params;
+    // Request the largest value of maxInterStageShaderVariables to allow the test using as many
+    // inter-stage shader components as possible without being limited by
+    // maxInterStageShaderVariables.
+    const extraLimits: LimitsRequest = { maxInterStageShaderVariables: 'adapterLimit' };
     await t.testDeviceWithRequestedMaximumLimits(
       limitTest,
       testValueName,
@@ -137,6 +147,7 @@ g.test('createRenderPipeline,at_over')
         );
 
         await t.testCreateRenderPipeline(pipelineDescriptor, async, shouldError, code);
-      }
+      },
+      extraLimits
     );
   });

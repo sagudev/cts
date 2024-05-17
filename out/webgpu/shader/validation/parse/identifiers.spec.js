@@ -73,8 +73,8 @@ const kValidIdentifiers = new Set([
 'unsigned',
 'vec2',
 'vec3',
-'vec4']);
-
+'vec4']
+);
 const kInvalidIdentifiers = new Set([
 '_', // Single underscore is a syntactic token for phony assignment.
 '__', // Leading double underscore is reserved.
@@ -263,16 +263,138 @@ const kInvalidIdentifiers = new Set([
 'where',
 'with',
 'writeonly',
-'yield']);
+'yield']
+);
 
-g.test('identifiers').
-desc(`Test that valid identifiers are accepted, and invalid identifiers are rejected.`).
+g.test('module_var_name').
+desc(
+  `Test that valid identifiers are accepted for names of module-scope 'var's, and invalid identifiers are rejected.`
+).
 params((u) =>
-u.combine('ident', new Set([...kValidIdentifiers, ...kInvalidIdentifiers])).beginSubcases()).
-
+u.combine('ident', new Set([...kValidIdentifiers, ...kInvalidIdentifiers])).beginSubcases()
+).
 fn((t) => {
   const type = t.params.ident === 'i32' ? 'u32' : 'i32';
   const code = `var<private> ${t.params.ident} : ${type};`;
+  t.expectCompileResult(kValidIdentifiers.has(t.params.ident), code);
+});
+
+g.test('module_const_name').
+desc(
+  `Test that valid identifiers are accepted for names of module-scope 'const's, and invalid identifiers are rejected.`
+).
+params((u) =>
+u.combine('ident', new Set([...kValidIdentifiers, ...kInvalidIdentifiers])).beginSubcases()
+).
+fn((t) => {
+  const type = t.params.ident === 'i32' ? 'u32' : 'i32';
+  const code = `const ${t.params.ident} : ${type} = 0;`;
+  t.expectCompileResult(kValidIdentifiers.has(t.params.ident), code);
+});
+
+g.test('override_name').
+desc(
+  `Test that valid identifiers are accepted for names of 'override's, and invalid identifiers are rejected.`
+).
+params((u) =>
+u.combine('ident', new Set([...kValidIdentifiers, ...kInvalidIdentifiers])).beginSubcases()
+).
+fn((t) => {
+  const type = t.params.ident === 'i32' ? 'u32' : 'i32';
+  const code = `override ${t.params.ident} : ${type} = 0;`;
+  t.expectCompileResult(kValidIdentifiers.has(t.params.ident), code);
+});
+
+g.test('function_name').
+desc(
+  `Test that valid identifiers are accepted for names of functions, and invalid identifiers are rejected.`
+).
+params((u) =>
+u.combine('ident', new Set([...kValidIdentifiers, ...kInvalidIdentifiers])).beginSubcases()
+).
+fn((t) => {
+  const code = `fn ${t.params.ident}() {}`;
+  t.expectCompileResult(kValidIdentifiers.has(t.params.ident), code);
+});
+
+g.test('struct_name').
+desc(
+  `Test that valid identifiers are accepted for names of structs, and invalid identifiers are rejected.`
+).
+params((u) =>
+u.combine('ident', new Set([...kValidIdentifiers, ...kInvalidIdentifiers])).beginSubcases()
+).
+fn((t) => {
+  const type = t.params.ident === 'i32' ? 'u32' : 'i32';
+  const code = `struct ${t.params.ident} { i : ${type} }`;
+  t.expectCompileResult(kValidIdentifiers.has(t.params.ident), code);
+});
+
+g.test('alias_name').
+desc(
+  `Test that valid identifiers are accepted for names of aliases, and invalid identifiers are rejected.`
+).
+params((u) =>
+u.combine('ident', new Set([...kValidIdentifiers, ...kInvalidIdentifiers])).beginSubcases()
+).
+fn((t) => {
+  const type = t.params.ident === 'i32' ? 'u32' : 'i32';
+  const code = `alias ${t.params.ident} = ${type};`;
+  t.expectCompileResult(kValidIdentifiers.has(t.params.ident), code);
+});
+
+g.test('function_param_name').
+desc(
+  `Test that valid identifiers are accepted for names of function parameters, and invalid identifiers are rejected.`
+).
+params((u) =>
+u.combine('ident', new Set([...kValidIdentifiers, ...kInvalidIdentifiers])).beginSubcases()
+).
+fn((t) => {
+  const type = t.params.ident === 'i32' ? 'u32' : 'i32';
+  const code = `fn F(${t.params.ident} : ${type}) {}`;
+  t.expectCompileResult(kValidIdentifiers.has(t.params.ident), code);
+});
+
+g.test('function_const_name').
+desc(
+  `Test that valid identifiers are accepted for names of function-scoped 'const's, and invalid identifiers are rejected.`
+).
+params((u) =>
+u.combine('ident', new Set([...kValidIdentifiers, ...kInvalidIdentifiers])).beginSubcases()
+).
+fn((t) => {
+  const code = `fn F() {
+  const ${t.params.ident} = 1;
+}`;
+  t.expectCompileResult(kValidIdentifiers.has(t.params.ident), code);
+});
+
+g.test('function_let_name').
+desc(
+  `Test that valid identifiers are accepted for names of function-scoped 'let's, and invalid identifiers are rejected.`
+).
+params((u) =>
+u.combine('ident', new Set([...kValidIdentifiers, ...kInvalidIdentifiers])).beginSubcases()
+).
+fn((t) => {
+  const code = `fn F() {
+  let ${t.params.ident} = 1;
+}`;
+  t.expectCompileResult(kValidIdentifiers.has(t.params.ident), code);
+});
+
+g.test('function_var_name').
+desc(
+  `Test that valid identifiers are accepted for names of function-scoped 'var's, and invalid identifiers are rejected.`
+).
+params((u) =>
+u.combine('ident', new Set([...kValidIdentifiers, ...kInvalidIdentifiers])).beginSubcases()
+).
+fn((t) => {
+  const code = `fn F() {
+  var ${t.params.ident} = 1;
+}`;
   t.expectCompileResult(kValidIdentifiers.has(t.params.ident), code);
 });
 

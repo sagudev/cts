@@ -53,7 +53,7 @@ class SamplerAnisotropicFilteringSlantedPlaneTest extends GPUTest {
   }
 
   private pipeline: GPURenderPipeline | undefined;
-  async init(): Promise<void> {
+  override async init(): Promise<void> {
     await super.init();
 
     this.pipeline = this.device.createRenderPipeline({
@@ -145,9 +145,9 @@ class SamplerAnisotropicFilteringSlantedPlaneTest extends GPUTest {
       colorAttachments: [
         {
           view: colorAttachmentView,
-          storeOp: 'store',
           clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
           loadOp: 'clear',
+          storeOp: 'store',
         },
       ],
     });
@@ -287,7 +287,7 @@ g.test('anisotropic_filter_mipmap_color')
   ])
   .fn(t => {
     const texture = t.createTextureFromTexelViewsMultipleMipmaps(
-      colors.map(value => TexelView.fromTexelsAsBytes(kTextureFormat, coords_ => value)),
+      colors.map(value => TexelView.fromTexelsAsBytes(kTextureFormat, _coords => value)),
       { size: [4, 4, 1], usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING }
     );
     const textureView = texture.createView();
