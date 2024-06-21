@@ -262,6 +262,19 @@ export class GPUTestSubcaseBatchState extends SubcaseBatchState {
     }
   }
 
+  skipIfTextureLoadNotSupportedForTextureType(...types) {
+    if (this.isCompatibility) {
+      for (const type of types) {
+        switch (type) {
+          case 'texture_depth_2d':
+          case 'texture_depth_2d_array':
+          case 'texture_depth_multisampled_2d':
+            this.skip(`${type} is not supported by textureLoad in compatibility mode`);
+        }
+      }
+    }
+  }
+
   /**
    * Skips test if the given interpolation type or sampling is not supported.
    */
@@ -474,6 +487,14 @@ export class GPUTestBase extends Fixture {
         if (format && isCompressedTextureFormat(format)) {
           this.skip(`copyTextureToTexture with ${format} is not supported`);
         }
+      }
+    }
+  }
+
+  skipIfTextureFormatNotUsableAsStorageTexture(...formats) {
+    for (const format of formats) {
+      if (format && !isTextureFormatUsableAsStorageFormat(format, this.isCompatibility)) {
+        this.skip(`Texture with ${format} is not usable as a storage texture`);
       }
     }
   }

@@ -23,7 +23,7 @@ export const listing = [
       "api",
       "operation",
       "adapter",
-      "requestAdapter"
+      "info"
     ]
   },
   {
@@ -31,7 +31,7 @@ export const listing = [
       "api",
       "operation",
       "adapter",
-      "requestAdapterInfo"
+      "requestAdapter"
     ]
   },
   {
@@ -1697,7 +1697,7 @@ export const listing = [
       "api",
       "validation",
       "render_pipeline",
-      "shader_module"
+      "vertex_state"
     ]
   },
   {
@@ -1705,8 +1705,8 @@ export const listing = [
       "compat",
       "api",
       "validation",
-      "render_pipeline",
-      "vertex_state"
+      "shader_module",
+      "shader_module"
     ]
   },
   {

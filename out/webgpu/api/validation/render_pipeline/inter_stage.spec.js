@@ -5,10 +5,21 @@ Interface matching between vertex and fragment shader validation for createRende
 `;import { makeTestGroup } from '../../../../common/framework/test_group.js';
 import { range } from '../../../../common/util/util.js';
 
+
 import { CreateRenderPipelineValidationTest } from './common.js';
 
 function getVarName(i) {
   return `v${i}`;
+}
+
+function skipIfDisallowedInterpolationParameter(t, ...wgsl) {
+  if (t.isCompatibility) {
+    for (const s of wgsl) {
+      if (s.includes('linear') || s.includes('sample')) {
+        t.skip(`unsupported interpolation parameter in compat: ${wgsl}`);
+      }
+    }
+  }
 }
 
 class InterStageMatchingValidationTest extends CreateRenderPipelineValidationTest {
@@ -176,6 +187,9 @@ u.combine('isAsync', [false, true]).combineWithParams([
 }]
 )
 ).
+beforeAllSubcases((t) => {
+  skipIfDisallowedInterpolationParameter(t, t.params.output, t.params.input);
+}).
 fn((t) => {
   const { isAsync, output, input, _success, _compat_success } = t.params;
 
@@ -219,6 +233,9 @@ u.combine('isAsync', [false, true]).combineWithParams([
 { output: '@interpolate(perspective, centroid)', input: '@interpolate(perspective)' }]
 )
 ).
+beforeAllSubcases((t) => {
+  skipIfDisallowedInterpolationParameter(t, t.params.output, t.params.input);
+}).
 fn((t) => {
   const { isAsync, output, input, _success, _compat_success } = t.params;
 
@@ -335,12 +352,12 @@ fn((t) => {
   }
 
   if (useExtraBuiltinInputs) {
-    inputs.push(
-      '@builtin(front_facing) front_facing_in: bool',
-      '@builtin(sample_mask) sample_mask_in: u32'
-    );
+    inputs.push('@builtin(front_facing) front_facing_in: bool');
     if (!t.isCompatibility) {
-      inputs.push('@builtin(sample_index) sample_index_in: u32');
+      inputs.push(
+        '@builtin(sample_mask) sample_mask_in: u32',
+        '@builtin(sample_index) sample_index_in: u32'
+      );
     }
   }
 
