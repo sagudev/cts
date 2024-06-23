@@ -1176,10 +1176,7 @@ pipelineCache)
         const module = t.device.createShaderModule({ code: source });
 
         console.log("build the pipeline");
-        const pipeline = await t.device.createComputePipelineAsync({
-          layout: 'auto',
-          compute: { module, entryPoint: 'main' }
-        });
+        const pipeline = await Promise.reject(new GPUPipelineError({reason: "internal"}));
         console.log("pipeline built!");
 
         // build the bind group
