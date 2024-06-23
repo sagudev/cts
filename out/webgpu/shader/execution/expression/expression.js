@@ -1175,11 +1175,12 @@ pipelineCache)
         // build the shader module
         const module = t.device.createShaderModule({ code: source });
 
-        // build the pipeline
+        console.log("build the pipeline");
         const pipeline = await t.device.createComputePipelineAsync({
           layout: 'auto',
           compute: { module, entryPoint: 'main' }
         });
+        console.log("pipeline built!");
 
         // build the bind group
         const group = t.device.createBindGroup({
