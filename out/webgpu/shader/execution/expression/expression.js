@@ -432,8 +432,9 @@ batch_size)
 
     pendingBatches.push(processBatch(batchCases));
   }
-
+  console.log("await Promise.all(pendingBatches)");
   await Promise.all(pendingBatches);
+  console.log("awaited Promise.all(pendingBatches)");
 }
 
 /**
