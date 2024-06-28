@@ -432,6 +432,7 @@ batch_size)
 
     pendingBatches.push(processBatch(batchCases));
   }
+
   console.log("await Promise.all(pendingBatches)");
   await Promise.all(pendingBatches);
   console.log("awaited Promise.all(pendingBatches)");
@@ -457,7 +458,7 @@ pipelineCache)
   // Construct a buffer to hold the results of the expression tests
   const outputStride = structStride([resultType], 'storage_rw');
   const outputBufferSize = align(cases.length * outputStride, 4);
-  const outputBuffer = t.device.createBuffer({
+  const outputBuffer = t.createBufferTracked({
     size: outputBufferSize,
     usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE
   });
@@ -1177,7 +1178,7 @@ pipelineCache)
         const module = t.device.createShaderModule({ code: source });
 
         console.log("build the pipeline");
-        const pipeline = await Promise.reject(new GPUPipelineError({reason: "internal"}));
+        const pipeline = await Promise.reject(new GPUPipelineError('msg', { reason: 'validation' }));
         console.log("pipeline built!");
 
         // build the bind group

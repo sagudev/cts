@@ -20,7 +20,7 @@ fn((t) => {
 });
 
 g.test('no_attachment').
-desc(`Test that createRenderPipeline without any attachment.`).
+desc(`Test that createRenderPipeline fails without any attachment.`).
 params((u) => u.combine('isAsync', [false, true])).
 fn((t) => {
   const { isAsync } = t.params;
@@ -48,7 +48,11 @@ combine('depthStencilFormat', [
 'depth32float',
 '']
 ).
-combine('hasColor', [false, true])
+combine('hasColor', [false, true]).
+unless(({ depthStencilFormat, hasColor }) => {
+  // Render pipeline needs at least one attachement
+  return hasColor === false && depthStencilFormat === '';
+})
 ).
 fn((t) => {
   const { isAsync, depthStencilFormat, hasColor } = t.params;

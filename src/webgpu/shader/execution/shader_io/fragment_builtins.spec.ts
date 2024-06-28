@@ -138,17 +138,15 @@ function copyRGBA8EncodedFloatTexturesToBufferIncludingMultisampledTextures(
   assert(isTextureSameDimensions(textures[0], textures[3]));
   const { width, height, sampleCount } = textures[0];
 
-  const copyBuffer = t.device.createBuffer({
+  const copyBuffer = t.createBufferTracked({
     size: width * height * sampleCount * 4 * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   });
-  t.trackForCleanup(copyBuffer);
 
-  const buffer = t.device.createBuffer({
+  const buffer = t.createBufferTracked({
     size: copyBuffer.size,
     usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
   });
-  t.trackForCleanup(buffer);
 
   const pipeline = getCopyMultisamplePipelineForDevice(t.device, textures);
   const encoder = t.device.createCommandEncoder();
@@ -615,8 +613,8 @@ async function renderFragmentShaderInputsTo4TexturesAndReadbackValues(
     `,
   });
 
-  const textures = range(4, () => {
-    const texture = t.device.createTexture({
+  const textures = range(4, () =>
+    t.createTextureTracked({
       size: [width, height],
       usage:
         GPUTextureUsage.RENDER_ATTACHMENT |
@@ -624,10 +622,8 @@ async function renderFragmentShaderInputsTo4TexturesAndReadbackValues(
         GPUTextureUsage.COPY_SRC,
       format: 'rgba8unorm',
       sampleCount,
-    });
-    t.trackForCleanup(texture);
-    return texture;
-  });
+    })
+  );
 
   const pipeline = t.device.createRenderPipeline({
     layout: 'auto',
@@ -650,11 +646,10 @@ async function renderFragmentShaderInputsTo4TexturesAndReadbackValues(
     },
   });
 
-  const uniformBuffer = t.device.createBuffer({
+  const uniformBuffer = t.createBufferTracked({
     size: 8,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  t.trackForCleanup(uniformBuffer);
   t.device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([width, height]));
 
   const viewport = [0, 0, width, height, ...nearFar] as const;
@@ -758,7 +753,8 @@ g.test('inputs,position')
         { type: 'linear', sampling: 'center' },
         { type: 'linear', sampling: 'centroid' },
         { type: 'linear', sampling: 'sample' },
-        { type: 'flat' },
+        { type: 'flat', sampling: 'first' },
+        { type: 'flat', sampling: 'either' },
       ] as const)
   )
   .beforeAllSubcases(t => {
@@ -832,6 +828,8 @@ g.test('inputs,interStage')
   .desc(
     `
     Test fragment shader inter-stage variable values except for centroid interpolation.
+
+    * TODO: Test @interpolation(flat, either)
   `
   )
   .params(u =>
@@ -843,7 +841,7 @@ g.test('inputs,interStage')
         { type: 'perspective', sampling: 'sample' },
         { type: 'linear', sampling: 'center' },
         { type: 'linear', sampling: 'sample' },
-        { type: 'flat' },
+        { type: 'flat', sampling: 'first' },
       ] as const)
   )
   .beforeAllSubcases(t => {
@@ -1062,7 +1060,8 @@ g.test('inputs,sample_index')
         { type: 'linear', sampling: 'center' },
         { type: 'linear', sampling: 'centroid' },
         { type: 'linear', sampling: 'sample' },
-        { type: 'flat' },
+        { type: 'flat', sampling: 'first' },
+        { type: 'flat', sampling: 'either' },
       ] as const)
   )
   .beforeAllSubcases(t => {
@@ -1146,7 +1145,8 @@ g.test('inputs,front_facing')
         { type: 'linear', sampling: 'center' },
         { type: 'linear', sampling: 'centroid' },
         { type: 'linear', sampling: 'sample' },
-        { type: 'flat' },
+        { type: 'flat', sampling: 'first' },
+        { type: 'flat', sampling: 'either' },
       ] as const)
   )
   .beforeAllSubcases(t => {
@@ -1318,7 +1318,8 @@ g.test('inputs,sample_mask')
         { type: 'linear', sampling: 'center' },
         { type: 'linear', sampling: 'centroid' },
         { type: 'linear', sampling: 'sample' },
-        { type: 'flat' },
+        { type: 'flat', sampling: 'first' },
+        { type: 'flat', sampling: 'either' },
       ] as const)
       .beginSubcases()
       .combineWithParams([
