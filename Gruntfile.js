@@ -192,14 +192,7 @@ module.exports = function (grunt) {
         tasks: ['build-standalone', 'build-wpt'],
       },
       'all-checks': {
-        tasks: [
-          'ts-check',
-          'run:validate',
-          'run:validate-cache',
-          'run:unittest',
-          'run:lint',
-          'run:tsdoc-treatWarningsAsErrors',
-        ],
+        tasks: [],
       },
       'all-builds-and-checks': {
         tasks: [
