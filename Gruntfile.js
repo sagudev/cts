@@ -99,16 +99,6 @@ module.exports = function (grunt) {
           '--ignore=src/common/tools',
         ],
       },
-      'build-out-node': {
-        cmd: 'node',
-        args: [
-          'node_modules/typescript/lib/tsc.js',
-          '--project',
-          'node.tsconfig.json',
-          '--outDir',
-          'out-node/',
-        ],
-      },
       'copy-assets': {
         cmd: 'node',
         args: [
@@ -199,7 +189,7 @@ module.exports = function (grunt) {
         tasks: ['run:write-out-wpt-cts-html', 'run:write-out-wpt-cts-html-chunked2sec'],
       },
       'all-builds': {
-        tasks: ['build-standalone', 'build-wpt', 'run:build-out-node'],
+        tasks: ['build-standalone', 'build-wpt'],
       },
       'all-checks': {
         tasks: [
@@ -264,10 +254,6 @@ module.exports = function (grunt) {
     'concurrent:write-out-wpt-cts-html-all',
     'run:autoformat-out-wpt',
   ]);
-  grunt.registerTask('build-node', 'Build out-node/ (no checks; run after generate-common)', [
-    'run:build-out-node',
-    'run:copy-assets-node',
-  ]);
   grunt.registerTask('build-all', 'Build out*/ (no checks; run after generate-common)', [
     'concurrent:all-builds',
     'build-done-message',
@@ -298,7 +284,6 @@ module.exports = function (grunt) {
   ]);
   registerTaskAndAddToHelp('node', 'Build node (out-node/) (no checks)', [
     'generate-common',
-    'build-node',
     'build-done-message',
   ]);
   registerTaskAndAddToHelp('checks', 'Run all checks (and build tsdoc)', ['concurrent:all-checks']);
