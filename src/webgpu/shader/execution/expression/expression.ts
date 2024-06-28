@@ -433,7 +433,9 @@ export async function run(
     pendingBatches.push(processBatch(batchCases));
   }
 
+  console.log("await Promise.all(pendingBatches)");
   await Promise.all(pendingBatches);
+  console.log("awaited Promise.all(pendingBatches)");
 }
 
 /**
@@ -1175,11 +1177,9 @@ async function buildPipeline(
       // build the shader module
       const module = t.device.createShaderModule({ code: source });
 
-      // build the pipeline
-      const pipeline = await t.device.createComputePipelineAsync({
-        layout: 'auto',
-        compute: { module, entryPoint: 'main' },
-      });
+      console.log("build the pipeline");
+      const pipeline = await Promise.reject(new GPUPipelineError('msg', { reason: 'validation' }));
+      console.log("pipeline built!");
 
       // build the bind group
       const group = t.device.createBindGroup({

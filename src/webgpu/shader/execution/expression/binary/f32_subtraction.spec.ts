@@ -120,6 +120,7 @@ Accuracy: Correctly rounded
   )
   .params(u => u.combine('inputSource', allInputSources).combine('dim', [2, 3, 4] as const))
   .fn(async t => {
+    console.log("run!!!");
     const dim = t.params.dim;
     const cases = await d.get(
       t.params.inputSource === 'const' ? `scalar_vec${dim}_const` : `scalar_vec${dim}_non_const`
