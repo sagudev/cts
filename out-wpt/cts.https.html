@@ -1952,6 +1952,7 @@
 <meta name=variant content='?q=webgpu:shader,validation,decl,context_dependent_resolution:swizzle_names:*'>
 <meta name=variant content='?q=webgpu:shader,validation,decl,context_dependent_resolution:interpolation_type_names:*'>
 <meta name=variant content='?q=webgpu:shader,validation,decl,context_dependent_resolution:interpolation_sampling_names:*'>
+<meta name=variant content='?q=webgpu:shader,validation,decl,context_dependent_resolution:interpolation_flat_names:*'>
 <meta name=variant content='?q=webgpu:shader,validation,decl,let:type:*'>
 <meta name=variant content='?q=webgpu:shader,validation,decl,let:initializer:*'>
 <meta name=variant content='?q=webgpu:shader,validation,decl,let:module_scope:*'>
@@ -2006,6 +2007,8 @@
 <meta name=variant content='?q=webgpu:shader,validation,expression,binary,bitwise_shift:invalid_types:*'>
 <meta name=variant content='?q=webgpu:shader,validation,expression,binary,bitwise_shift:shift_left_concrete:*'>
 <meta name=variant content='?q=webgpu:shader,validation,expression,binary,bitwise_shift:shift_right_concrete:*'>
+<meta name=variant content='?q=webgpu:shader,validation,expression,binary,bitwise_shift:shift_left_abstract:*'>
+<meta name=variant content='?q=webgpu:shader,validation,expression,binary,bitwise_shift:shift_right_abstract:*'>
 <meta name=variant content='?q=webgpu:shader,validation,expression,binary,bitwise_shift:partial_eval_errors:*'>
 <meta name=variant content='?q=webgpu:shader,validation,expression,binary,comparison:scalar_vector:*'>
 <meta name=variant content='?q=webgpu:shader,validation,expression,binary,comparison:invalid_types:*'>
@@ -2445,6 +2448,7 @@
 <meta name=variant content='?q=webgpu:shader,validation,expression,call,builtin,workgroupUniformLoad:only_in_compute:*'>
 <meta name=variant content='?q=webgpu:shader,validation,expression,call,builtin,workgroupUniformLoad:no_atomics:*'>
 <meta name=variant content='?q=webgpu:shader,validation,expression,call,builtin,workgroupUniformLoad:must_use:*'>
+<meta name=variant content='?q=webgpu:shader,validation,expression,early_evaluation:composites:*'>
 <meta name=variant content='?q=webgpu:shader,validation,expression,matrix,add_sub:invalid:*'>
 <meta name=variant content='?q=webgpu:shader,validation,expression,matrix,add_sub:with_abstract:*'>
 <meta name=variant content='?q=webgpu:shader,validation,expression,matrix,add_sub:overflow_f32:*'>
@@ -2495,6 +2499,9 @@
 <meta name=variant content='?q=webgpu:shader,validation,expression,unary,logical_negation:invalid_types:*'>
 <meta name=variant content='?q=webgpu:shader,validation,expression,unary,logical_negation:parse:*'>
 <meta name=variant content='?q=webgpu:shader,validation,extension,dual_source_blending:use_blend_src_requires_extension_enabled:*'>
+<meta name=variant content='?q=webgpu:shader,validation,extension,dual_source_blending:blend_src_syntax_validation:*'>
+<meta name=variant content='?q=webgpu:shader,validation,extension,dual_source_blending:blend_src_stage_input_output:*'>
+<meta name=variant content='?q=webgpu:shader,validation,extension,dual_source_blending:blend_src_usage:*'>
 <meta name=variant content='?q=webgpu:shader,validation,extension,pointer_composite_access:deref:*'>
 <meta name=variant content='?q=webgpu:shader,validation,extension,pointer_composite_access:pointer:*'>
 <meta name=variant content='?q=webgpu:shader,validation,extension,readonly_and_readwrite_storage_textures:var_decl:*'>

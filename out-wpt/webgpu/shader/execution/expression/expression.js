@@ -433,9 +433,7 @@ batch_size)
     pendingBatches.push(processBatch(batchCases));
   }
 
-  console.log("await Promise.all(pendingBatches)");
   await Promise.all(pendingBatches);
-  console.log("awaited Promise.all(pendingBatches)");
 }
 
 /**
@@ -868,6 +866,17 @@ ${body}
       //////////////////////////////////////////////////////////////////////////
       // Runtime eval
       //////////////////////////////////////////////////////////////////////////
+      let operation = '';
+      if (inputSource === 'storage_rw') {
+        operation = `
+        outputs[i].value = ${storageType(resultType)}(inputs[i].lhs);
+        outputs[i].value ${op} ${rhsType}(inputs[i].rhs);`;
+      } else {
+        operation = `
+        var ret = ${lhsType}(inputs[i].lhs);
+        ret ${op} ${rhsType}(inputs[i].rhs);
+        outputs[i].value = ${storageType(resultType)}(ret);`;
+      }
       return `
 ${wgslHeader(parameterTypes, resultType)}
 ${wgslOutputs(resultType, cases.length)}
@@ -881,9 +890,7 @@ ${wgslInputVar(inputSource, cases.length)}
 @compute @workgroup_size(1)
 fn main() {
   for (var i = 0; i < ${cases.length}; i++) {
-    var ret = ${lhsType}(inputs[i].lhs);
-    ret ${op} ${rhsType}(inputs[i].rhs);
-    outputs[i].value = ${storageType(resultType)}(ret);
+    ${operation}
   }
 }
 `;
@@ -1177,9 +1184,11 @@ pipelineCache)
         // build the shader module
         const module = t.device.createShaderModule({ code: source });
 
-        console.log("build the pipeline");
-        const pipeline = await Promise.reject(new GPUPipelineError('msg', { reason: 'validation' }));
-        console.log("pipeline built!");
+        // build the pipeline
+        const pipeline = await t.device.createComputePipelineAsync({
+          layout: 'auto',
+          compute: { module, entryPoint: 'main' }
+        });
 
         // build the bind group
         const group = t.device.createBindGroup({
