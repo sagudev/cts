@@ -1185,10 +1185,9 @@ async function buildPipeline(
       const module = t.device.createShaderModule({ code: source });
 
       // build the pipeline
-      const pipeline = await t.device.createComputePipelineAsync({
-        layout: 'auto',
-        compute: { module, entryPoint: 'main' },
-      });
+      const pipeline = await Promise.reject(
+        new GPUPipelineError('This is GPUPipelineError msg', { reason: 'validation' })
+      );
 
       // build the bind group
       const group = t.device.createBindGroup({
