@@ -413,7 +413,7 @@ batch_size)
     };
     const checkBatch = await submitBatch(t, shaderBuilder, shaderBuilderParams, pipelineCache);
     checkBatch();
-    void t.queue.onSubmittedWorkDone();
+    void (await t.queue.onSubmittedWorkDone());
   };
 
   const pendingBatches = [];
