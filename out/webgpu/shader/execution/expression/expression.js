@@ -413,7 +413,7 @@ batch_size)
     };
     const checkBatch = await submitBatch(t, shaderBuilder, shaderBuilderParams, pipelineCache);
     checkBatch();
-    void (await t.queue.onSubmittedWorkDone());
+    await t.queue.onSubmittedWorkDone();
   };
 
   const pendingBatches = [];
@@ -867,7 +867,7 @@ ${body}
       // Runtime eval
       //////////////////////////////////////////////////////////////////////////
       let operation = '';
-      if (inputSource === 'storage_rw') {
+      if (inputSource === 'storage_rw' && objectEquals(resultType, storageType(resultType))) {
         operation = `
         outputs[i].value = ${storageType(resultType)}(inputs[i].lhs);
         outputs[i].value ${op} ${rhsType}(inputs[i].rhs);`;
@@ -1185,9 +1185,10 @@ pipelineCache)
         const module = t.device.createShaderModule({ code: source });
 
         // build the pipeline
-        const pipeline = await Promise.reject(
-          new GPUPipelineError('This is GPUPipelineError msg', { reason: 'validation' })
-        );
+        const pipeline = await t.device.createComputePipelineAsync({
+          layout: 'auto',
+          compute: { module, entryPoint: 'main' }
+        });
 
         // build the bind group
         const group = t.device.createBindGroup({
