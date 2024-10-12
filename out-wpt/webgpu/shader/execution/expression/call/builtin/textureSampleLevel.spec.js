@@ -3,6 +3,9 @@
 **/export const description = `
 Samples a texture.
 
+Must only be used in a fragment shader stage.
+Must only be invoked in uniform control flow.
+
 - TODO: Test un-encodable formats.
 `;import { makeTestGroup } from '../../../../../../common/framework/test_group.js';
 import {
@@ -13,7 +16,6 @@ import {
   kDepthStencilFormats,
   kEncodableTextureFormats } from
 '../../../../../format_info.js';
-import { kShaderStages } from '../../../../validation/decl/util.js';
 
 import {
   appendComponentTypeForFormatToTextureType,
@@ -67,7 +69,6 @@ Parameters:
 ).
 params((u) =>
 u.
-combine('stage', kShaderStages).
 combine('format', kTestableColorFormats).
 filter((t) => isPotentiallyFilterableAndFillable(t.format)).
 beginSubcases().
@@ -81,7 +82,7 @@ beforeAllSubcases((t) =>
 skipIfTextureFormatNotSupportedNotAvailableOrNotFilterable(t, t.params.format)
 ).
 fn(async (t) => {
-  const { format, stage, samplePoints, addressModeU, addressModeV, minFilter, offset } = t.params;
+  const { format, samplePoints, addressModeU, addressModeV, minFilter, offset } = t.params;
 
   // We want at least 4 blocks or something wide enough for 3 mip levels.
   const [width, height] = chooseTextureSize({ minSize: 8, minBlocks: 4, format });
@@ -106,7 +107,7 @@ fn(async (t) => {
     descriptor,
     mipLevel: { num: texture.mipLevelCount, type: 'f32' },
     offset,
-    hashInputs: [stage, format, samplePoints, addressModeU, addressModeV, minFilter, offset]
+    hashInputs: [format, samplePoints, addressModeU, addressModeV, minFilter, offset]
   }).map(({ coords, mipLevel, offset }) => {
     return {
       builtin: 'textureSampleLevel',
@@ -119,23 +120,14 @@ fn(async (t) => {
   });
   const textureType = appendComponentTypeForFormatToTextureType('texture_2d', format);
   const viewDescriptor = {};
-  const results = await doTextureCalls(
-    t,
-    texture,
-    viewDescriptor,
-    textureType,
-    sampler,
-    calls,
-    stage
-  );
+  const results = await doTextureCalls(t, texture, viewDescriptor, textureType, sampler, calls);
   const res = await checkCallResults(
     t,
     { texels, descriptor, viewDescriptor },
     textureType,
     sampler,
     calls,
-    results,
-    stage
+    results
   );
   t.expectOK(res);
 });
@@ -169,7 +161,6 @@ Parameters:
 ).
 params((u) =>
 u.
-combine('stage', kShaderStages).
 combine('format', kTestableColorFormats).
 filter((t) => isPotentiallyFilterableAndFillable(t.format)).
 beginSubcases().
@@ -184,8 +175,7 @@ beforeAllSubcases((t) =>
 skipIfTextureFormatNotSupportedNotAvailableOrNotFilterable(t, t.params.format)
 ).
 fn(async (t) => {
-  const { format, stage, samplePoints, A, addressModeU, addressModeV, minFilter, offset } =
-  t.params;
+  const { format, samplePoints, A, addressModeU, addressModeV, minFilter, offset } = t.params;
 
   // We want at least 4 blocks or something wide enough for 3 mip levels.
   const [width, height] = chooseTextureSize({ minSize: 8, minBlocks: 4, format });
@@ -213,7 +203,7 @@ fn(async (t) => {
     mipLevel: { num: texture.mipLevelCount, type: 'f32' },
     arrayIndex: { num: texture.depthOrArrayLayers, type: A },
     offset,
-    hashInputs: [stage, format, samplePoints, A, addressModeU, addressModeV, minFilter, offset]
+    hashInputs: [format, samplePoints, A, addressModeU, addressModeV, minFilter, offset]
   }).map(({ coords, mipLevel, arrayIndex, offset }) => {
     return {
       builtin: 'textureSampleLevel',
@@ -228,23 +218,14 @@ fn(async (t) => {
   });
   const textureType = appendComponentTypeForFormatToTextureType('texture_2d_array', format);
   const viewDescriptor = {};
-  const results = await doTextureCalls(
-    t,
-    texture,
-    viewDescriptor,
-    textureType,
-    sampler,
-    calls,
-    stage
-  );
+  const results = await doTextureCalls(t, texture, viewDescriptor, textureType, sampler, calls);
   const res = await checkCallResults(
     t,
     { texels, descriptor, viewDescriptor },
     textureType,
     sampler,
     calls,
-    results,
-    stage
+    results
   );
   t.expectOK(res);
 });
@@ -276,7 +257,6 @@ Parameters:
 ).
 params((u) =>
 u.
-combine('stage', kShaderStages).
 combine('format', kTestableColorFormats).
 filter((t) => isPotentiallyFilterableAndFillable(t.format)).
 combine('viewDimension', ['3d', 'cube']).
@@ -293,7 +273,7 @@ beforeAllSubcases((t) =>
 skipIfTextureFormatNotSupportedNotAvailableOrNotFilterable(t, t.params.format)
 ).
 fn(async (t) => {
-  const { format, viewDimension, stage, samplePoints, addressMode, minFilter, offset } = t.params;
+  const { format, viewDimension, samplePoints, addressMode, minFilter, offset } = t.params;
 
   const [width, height] = chooseTextureSize({ minSize: 32, minBlocks: 2, format, viewDimension });
   const depthOrArrayLayers = getDepthOrArrayLayersForViewDimension(viewDimension);
@@ -316,7 +296,6 @@ fn(async (t) => {
     mipmapFilter: minFilter
   };
 
-  const hashInputs = [stage, format, viewDimension, samplePoints, addressMode, minFilter, offset];
   const calls = (
   viewDimension === '3d' ?
   generateTextureBuiltinInputs3D(50, {
@@ -325,14 +304,14 @@ fn(async (t) => {
     descriptor,
     mipLevel: { num: texture.mipLevelCount, type: 'f32' },
     offset,
-    hashInputs
+    hashInputs: [format, viewDimension, samplePoints, addressMode, minFilter, offset]
   }) :
   generateSamplePointsCube(50, {
     method: samplePoints,
     sampler,
     descriptor,
     mipLevel: { num: texture.mipLevelCount, type: 'f32' },
-    hashInputs
+    hashInputs: [format, viewDimension, samplePoints, addressMode, minFilter, offset]
   })).
   map(({ coords, mipLevel, offset }) => {
     return {
@@ -348,23 +327,14 @@ fn(async (t) => {
     dimension: viewDimension
   };
   const textureType = getTextureTypeForTextureViewDimension(viewDimension);
-  const results = await doTextureCalls(
-    t,
-    texture,
-    viewDescriptor,
-    textureType,
-    sampler,
-    calls,
-    stage
-  );
+  const results = await doTextureCalls(t, texture, viewDescriptor, textureType, sampler, calls);
   const res = await checkCallResults(
     t,
     { texels, descriptor, viewDescriptor },
     textureType,
     sampler,
     calls,
-    results,
-    stage
+    results
   );
   t.expectOK(res);
 });
@@ -399,7 +369,6 @@ Parameters:
 ).
 params((u) =>
 u.
-combine('stage', kShaderStages).
 combine('format', kTestableColorFormats).
 filter((t) => isPotentiallyFilterableAndFillable(t.format)).
 beginSubcases().
@@ -413,7 +382,7 @@ beforeAllSubcases((t) => {
   t.skipIfTextureViewDimensionNotSupported('cube-array');
 }).
 fn(async (t) => {
-  const { format, stage, samplePoints, A, addressMode, minFilter } = t.params;
+  const { format, samplePoints, A, addressMode, minFilter } = t.params;
 
   const viewDimension = 'cube-array';
   const size = chooseTextureSize({
@@ -444,7 +413,7 @@ fn(async (t) => {
     descriptor,
     mipLevel: { num: texture.mipLevelCount, type: 'f32' },
     arrayIndex: { num: texture.depthOrArrayLayers / 6, type: A },
-    hashInputs: [stage, format, viewDimension, A, samplePoints, addressMode, minFilter]
+    hashInputs: [format, viewDimension, A, samplePoints, addressMode, minFilter]
   }).map(({ coords, mipLevel, arrayIndex }) => {
     return {
       builtin: 'textureSampleLevel',
@@ -460,23 +429,14 @@ fn(async (t) => {
     dimension: viewDimension
   };
   const textureType = getTextureTypeForTextureViewDimension(viewDimension);
-  const results = await doTextureCalls(
-    t,
-    texture,
-    viewDescriptor,
-    textureType,
-    sampler,
-    calls,
-    stage
-  );
+  const results = await doTextureCalls(t, texture, viewDescriptor, textureType, sampler, calls);
   const res = await checkCallResults(
     t,
     { texels, descriptor, viewDescriptor },
     textureType,
     sampler,
     calls,
-    results,
-    stage
+    results
   );
   t.expectOK(res);
 });
@@ -509,7 +469,6 @@ Parameters:
 ).
 params((u) =>
 u.
-combine('stage', kShaderStages).
 combine('format', kDepthStencilFormats)
 // filter out stencil only formats
 .filter((t) => isDepthTextureFormat(t.format))
@@ -526,7 +485,7 @@ beforeAllSubcases((t) =>
 skipIfTextureFormatNotSupportedNotAvailableOrNotFilterable(t, t.params.format)
 ).
 fn(async (t) => {
-  const { format, stage, samplePoints, addressMode, minFilter, L, offset } = t.params;
+  const { format, samplePoints, addressMode, minFilter, L, offset } = t.params;
 
   // We want at least 4 blocks or something wide enough for 3 mip levels.
   const [width, height] = chooseTextureSize({ minSize: 8, minBlocks: 4, format });
@@ -551,7 +510,7 @@ fn(async (t) => {
     descriptor,
     mipLevel: { num: texture.mipLevelCount, type: L },
     offset,
-    hashInputs: [stage, format, samplePoints, addressMode, minFilter, L, offset]
+    hashInputs: [format, samplePoints, addressMode, minFilter, L, offset]
   }).map(({ coords, mipLevel, offset }) => {
     return {
       builtin: 'textureSampleLevel',
@@ -564,23 +523,14 @@ fn(async (t) => {
   });
   const textureType = appendComponentTypeForFormatToTextureType('texture_depth_2d', format);
   const viewDescriptor = {};
-  const results = await doTextureCalls(
-    t,
-    texture,
-    viewDescriptor,
-    textureType,
-    sampler,
-    calls,
-    stage
-  );
+  const results = await doTextureCalls(t, texture, viewDescriptor, textureType, sampler, calls);
   const res = await checkCallResults(
     t,
     { texels, descriptor, viewDescriptor },
     textureType,
     sampler,
     calls,
-    results,
-    stage
+    results
   );
   t.expectOK(res);
 });
@@ -615,7 +565,6 @@ Parameters:
 ).
 params((u) =>
 u.
-combine('stage', kShaderStages).
 combine('format', kDepthStencilFormats)
 // filter out stencil only formats
 .filter((t) => isDepthTextureFormat(t.format))
@@ -633,7 +582,7 @@ beforeAllSubcases((t) =>
 skipIfTextureFormatNotSupportedNotAvailableOrNotFilterable(t, t.params.format)
 ).
 fn(async (t) => {
-  const { format, stage, samplePoints, addressMode, minFilter, A, L, offset } = t.params;
+  const { format, samplePoints, addressMode, minFilter, A, L, offset } = t.params;
 
   // We want at least 4 blocks or something wide enough for 3 mip levels.
   const [width, height] = chooseTextureSize({ minSize: 8, minBlocks: 4, format });
@@ -660,7 +609,7 @@ fn(async (t) => {
     arrayIndex: { num: texture.depthOrArrayLayers, type: A },
     mipLevel: { num: texture.mipLevelCount, type: L },
     offset,
-    hashInputs: [stage, format, samplePoints, addressMode, minFilter, L, A, offset]
+    hashInputs: [format, samplePoints, addressMode, minFilter, L, A, offset]
   }).map(({ coords, mipLevel, arrayIndex, offset }) => {
     return {
       builtin: 'textureSampleLevel',
@@ -675,23 +624,14 @@ fn(async (t) => {
   });
   const textureType = appendComponentTypeForFormatToTextureType('texture_depth_2d_array', format);
   const viewDescriptor = { dimension: '2d-array' };
-  const results = await doTextureCalls(
-    t,
-    texture,
-    viewDescriptor,
-    textureType,
-    sampler,
-    calls,
-    stage
-  );
+  const results = await doTextureCalls(t, texture, viewDescriptor, textureType, sampler, calls);
   const res = await checkCallResults(
     t,
     { texels, descriptor, viewDescriptor },
     textureType,
     sampler,
     calls,
-    results,
-    stage
+    results
   );
   t.expectOK(res);
 });
@@ -725,7 +665,6 @@ Parameters:
 ).
 params((u) =>
 u.
-combine('stage', kShaderStages).
 combine('format', kDepthStencilFormats)
 // filter out stencil only formats
 .filter((t) => isDepthTextureFormat(t.format))
@@ -747,7 +686,7 @@ beforeAllSubcases((t) => {
   t.skipIfTextureViewDimensionNotSupported(t.params.viewDimension);
 }).
 fn(async (t) => {
-  const { format, stage, viewDimension, samplePoints, A, L, addressMode, minFilter } = t.params;
+  const { format, viewDimension, samplePoints, A, L, addressMode, minFilter } = t.params;
 
   const size = chooseTextureSize({
     minSize: 32,
@@ -778,7 +717,7 @@ fn(async (t) => {
     descriptor,
     mipLevel: { num: texture.mipLevelCount - 1, type: L },
     arrayIndex: A ? { num: texture.depthOrArrayLayers / 6, type: A } : undefined,
-    hashInputs: [stage, format, viewDimension, samplePoints, addressMode, minFilter]
+    hashInputs: [format, viewDimension, samplePoints, addressMode, minFilter]
   }).map(({ coords, mipLevel, arrayIndex }) => {
     return {
       builtin: 'textureSampleLevel',
@@ -795,15 +734,7 @@ fn(async (t) => {
   };
   const textureType =
   viewDimension === 'cube' ? 'texture_depth_cube' : 'texture_depth_cube_array';
-  const results = await doTextureCalls(
-    t,
-    texture,
-    viewDescriptor,
-    textureType,
-    sampler,
-    calls,
-    stage
-  );
+  const results = await doTextureCalls(t, texture, viewDescriptor, textureType, sampler, calls);
 
   const res = await checkCallResults(
     t,
@@ -811,8 +742,7 @@ fn(async (t) => {
     textureType,
     sampler,
     calls,
-    results,
-    stage
+    results
   );
   t.expectOK(res);
 });

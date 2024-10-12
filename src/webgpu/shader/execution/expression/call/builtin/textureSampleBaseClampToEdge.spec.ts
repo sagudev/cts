@@ -5,7 +5,6 @@ Execution tests for textureSampleBaseClampToEdge
 import { makeTestGroup } from '../../../../../../common/framework/test_group.js';
 import { GPUTest } from '../../../../../gpu_test.js';
 import { TexelView } from '../../../../../util/texture/texel_view.js';
-import { kShaderStages } from '../../../../validation/decl/util.js';
 
 import {
   checkCallResults,
@@ -55,7 +54,6 @@ Parameters:
   )
   .params(u =>
     u
-      .combine('stage', kShaderStages)
       .combine('textureType', ['texture_2d<f32>', 'texture_external'] as const)
       .beginSubcases()
       .combine('samplePoints', kSamplePointMethods)
@@ -70,7 +68,7 @@ Parameters:
     )
   )
   .fn(async t => {
-    const { textureType, stage, samplePoints, addressModeU, addressModeV, minFilter } = t.params;
+    const { textureType, samplePoints, addressModeU, addressModeV, minFilter } = t.params;
 
     const descriptor: GPUTextureDescriptor = {
       format: 'rgba8unorm',
@@ -107,23 +105,14 @@ Parameters:
         };
       });
       const viewDescriptor = {};
-      const results = await doTextureCalls(
-        t,
-        texture,
-        viewDescriptor,
-        textureType,
-        sampler,
-        calls,
-        stage
-      );
+      const results = await doTextureCalls(t, texture, viewDescriptor, textureType, sampler, calls);
       const res = await checkCallResults(
         t,
         { texels, descriptor, viewDescriptor },
         textureType,
         sampler,
         calls,
-        results,
-        stage
+        results
       );
       t.expectOK(res);
     } finally {

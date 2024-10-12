@@ -956,6 +956,7 @@
 <meta name=variant content='?q=webgpu:shader,execution,expression,access,matrix,index:concrete_float_element:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,access,matrix,index:abstract_float_column:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,access,matrix,index:abstract_float_element:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,access,matrix,index:non_const_index:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,access,structure,index:buffer:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,access,structure,index:buffer_align:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,access,structure,index:buffer_size:*'>
@@ -1634,6 +1635,7 @@
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureNumSamples:depth:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSample:sampled_1d_coords:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSample:sampled_2d_coords:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSample:sampled_2d_coords,derivatives:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSample:sampled_3d_coords:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSample:depth_2d_coords:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSample:sampled_array_2d_coords:*'>
@@ -1650,6 +1652,8 @@
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleCompare:3d_coords:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleCompare:arrayed_2d_coords:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleCompare:arrayed_3d_coords:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleCompareLevel:stage:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleCompareLevel:control_flow:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleCompareLevel:2d_coords:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleCompareLevel:3d_coords:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleCompareLevel:arrayed_2d_coords:*'>
@@ -1905,8 +1909,6 @@
 <meta name=variant content='?q=webgpu:shader,execution,padding:struct_explicit:*'>
 <meta name=variant content='?q=webgpu:shader,execution,padding:struct_nested:*'>
 <meta name=variant content='?q=webgpu:shader,execution,padding:array_of_vec3:*'>
-<meta name=variant content='?q=webgpu:shader,execution,padding:array_of_vec3h:*'>
-<meta name=variant content='?q=webgpu:shader,execution,padding:array_of_vec3h,elementwise:*'>
 <meta name=variant content='?q=webgpu:shader,execution,padding:array_of_struct:*'>
 <meta name=variant content='?q=webgpu:shader,execution,padding:vec3:*'>
 <meta name=variant content='?q=webgpu:shader,execution,padding:matCx3:*'>
