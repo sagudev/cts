@@ -211,10 +211,9 @@ combine('case', keysOf(kEnableCases)).
 beginSubcases().
 combine('decl', ['override', 'const', 'var<private>'])
 ).
-beforeAllSubcases((t) => {
-  t.selectDeviceOrSkipTestCase('shader-f16');
-}).
 fn((t) => {
+  t.skipIfDeviceDoesNotHaveFeature('shader-f16');
+
   const code = `
     ${kEnableCases[t.params.case]}
     ${t.params.decl} ${t.params.case} : u32 = 0;
@@ -230,7 +229,8 @@ const kLanguageCases = {
   readonly_and_readwrite_storage_textures: `requires readonly_and_readwrite_storage_textures;`,
   packed_4x8_integer_dot_product: `requires packed_4x8_integer_dot_product;`,
   unrestricted_pointer_parameters: `requires unrestricted_pointer_parameters;`,
-  pointer_composite_access: `requires pointer_composite_access;`
+  pointer_composite_access: `requires pointer_composite_access;`,
+  immediate_address_space: `requires immediate_address_space;`
 };
 
 g.test('language_names').

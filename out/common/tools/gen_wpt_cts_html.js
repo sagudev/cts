@@ -2,12 +2,17 @@
 * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
 **/import { promises as fs } from 'fs';import * as path from 'path';
 import { DefaultTestFileLoader } from '../internal/file_loader.js';
+import { compareQueries, Ordering } from '../internal/query/compare.js';
+import { parseQuery } from '../internal/query/parseQuery.js';
 import {
+
   TestQueryMultiCase,
   TestQueryMultiFile,
   TestQueryMultiTest } from
 '../internal/query/query.js';
 import { assert } from '../util/util.js';
+
+const kMaxQueryLength = 184;
 
 function printUsageAndExit(rc) {
   console.error(`\
@@ -25,7 +30,6 @@ gen_wpt_cts_html.ts. Example:
     "out": "path/to/output/cts.https.html",
     "outJSON": "path/to/output/webgpu_variant_list.json",
     "template": "path/to/template/cts.https.html",
-    "maxChunkTimeMS": 2000
   }
 
 Usage (advanced) (deprecated, use config file):
@@ -100,6 +104,21 @@ and myexpectations.txt is a file containing a list of WPT paths to suppress, e.g
 
 
 
+/** Process the `argumentsPrefixes` config section into a format that will be useful later. */
+function* reifyArgumentsPrefixesConfig(
+argumentsPrefixes)
+{
+  for (const item of argumentsPrefixes) {
+    if (typeof item === 'string') {
+      yield { prefix: item, filters: undefined };
+    } else {
+      const filters = item.filters?.map((f) => parseQuery(f));
+      for (const prefix of item.prefixes) {
+        yield { prefix, filters };
+      }
+    }
+  }
+}
 
 let config;
 
@@ -115,8 +134,9 @@ let config;
           suite: configJSON.suite,
           out: path.resolve(jsonFileDir, configJSON.out),
           template: path.resolve(jsonFileDir, configJSON.template),
-          maxChunkTimeMS: configJSON.maxChunkTimeMS ?? Infinity,
-          argumentsPrefixes: configJSON.argumentsPrefixes ?? ['?q='],
+          argumentsPrefixes: configJSON.argumentsPrefixes ?
+          [...reifyArgumentsPrefixesConfig(configJSON.argumentsPrefixes)] :
+          [{ prefix: '?q=' }],
           noLongPathAssert: configJSON.noLongPathAssert ?? false
         };
         if (configJSON.outVariantList) {
@@ -151,17 +171,17 @@ let config;
         process.argv;
 
         config = {
+          suite,
           out: outFile,
           template: templateFile,
-          suite,
-          maxChunkTimeMS: Infinity,
-          argumentsPrefixes: ['?q='],
+          argumentsPrefixes: [{ prefix: '?q=' }],
           noLongPathAssert: false
         };
         if (process.argv.length >= 7) {
           config.argumentsPrefixes = (await fs.readFile(argsPrefixesFile, 'utf8')).
           split(/\r?\n/).
-          filter((a) => a.length);
+          filter((a) => a.length).
+          map((prefix) => ({ prefix }));
           config.expectations = {
             file: expectationsFile,
             prefix: expectationsPrefix
@@ -174,10 +194,8 @@ let config;
       printUsageAndExit(1);
   }
 
-  const useChunking = Number.isFinite(config.maxChunkTimeMS);
-
   // Sort prefixes from longest to shortest
-  config.argumentsPrefixes.sort((a, b) => b.length - a.length);
+  config.argumentsPrefixes.sort((a, b) => b.prefix.length - a.prefix.length);
 
   // Load expectations (if any)
   const expectations = await loadQueryFile(
@@ -193,46 +211,67 @@ let config;
 
   const loader = new DefaultTestFileLoader();
   const lines = [];
-  for (const prefix of config.argumentsPrefixes) {
+  const tooLongQueries = [];
+  // MAINTENANCE_TODO: Doing all this work for each prefix is inefficient,
+  // especially if there are no expectations.
+  for (const { prefix, filters } of config.argumentsPrefixes) {
     const rootQuery = new TestQueryMultiFile(config.suite, []);
+    const subqueriesToExpand = expectations.get(prefix) ?? [];
+    if (filters) {
+      // Make sure any queries we want to filter will show up in the output.
+      // Important: This also checks that all queries actually exist (no typos, correct suite).
+      for (const q of filters) {
+        // subqueriesToExpand doesn't error if this happens, so check it first:
+        assert(q.suite === config.suite, () => `Filter is for the wrong suite: ${q}`);
+        if (q.level >= 2) {
+          // No need to expand since it will be already expanded.
+          subqueriesToExpand.push(q.toString());
+        }
+      }
+    }
+
     const tree = await loader.loadTree(rootQuery, {
-      subqueriesToExpand: expectations.get(prefix),
-      fullyExpandSubtrees: fullyExpand.get(prefix),
-      maxChunkTime: config.maxChunkTimeMS
+      subqueriesToExpand,
+      fullyExpandSubtrees: fullyExpand.get(prefix)
     });
 
     lines.push(undefined); // output blank line between prefixes
     const prefixComment = { comment: `Prefix: "${prefix}"` }; // contents will be updated later
-    if (useChunking) lines.push(prefixComment);
 
     const filesSeen = new Set();
     const testsSeen = new Set();
     let variantCount = 0;
 
     const alwaysExpandThroughLevel = 2; // expand to, at minimum, every test.
-    for (const { query, subtreeCounts } of tree.iterateCollapsedNodes({
+    loopOverNodes: for (const { query } of tree.iterateCollapsedNodes({
       alwaysExpandThroughLevel
     })) {
       assert(query instanceof TestQueryMultiCase);
+
+      const queryMatchesFilter = (filter) => {
+        const compare = compareQueries(filter, query);
+        // StrictSubset should not happen because we pass these to subqueriesToExpand so
+        // they should always be expanded (and therefore iterated more finely than this).
+        assert(compare !== Ordering.StrictSubset);
+        return compare === Ordering.Equal || compare === Ordering.StrictSuperset;
+      };
+      // MAINTENANCE_TODO: Looping this inside another loop is inefficient.
+      if (filters && !filters.some(queryMatchesFilter)) {
+        continue loopOverNodes;
+      }
+
       if (!config.noLongPathAssert) {
         const queryString = query.toString();
         // Check for a safe-ish path length limit. Filename must be <= 255, and on Windows the whole
         // path must be <= 259. Leave room for e.g.:
         // 'c:\b\s\w\xxxxxxxx\layout-test-results\external\wpt\webgpu\cts_worker=0_q=...-actual.txt'
-        assert(
-          queryString.length < 185,
-          `Generated test variant would produce too-long -actual.txt filename. Possible solutions:
-- Reduce the length of the parts of the test query
-- Reduce the parameterization of the test
-- Make the test function faster and regenerate the listing_meta entry
-- Reduce the specificity of test expectations (if you're using them)
-${queryString}`
-        );
+        if (queryString.length > kMaxQueryLength) {
+          tooLongQueries.push(queryString);
+        }
       }
 
       lines.push({
-        urlQueryString: prefix + query.toString(), // "?debug=0&q=..."
-        comment: useChunking ? `estimated: ${subtreeCounts?.totalTimeMS.toFixed(3)} ms` : undefined
+        urlQueryString: prefix + query.toString() // "?debug=0&q=..."
       });
 
       variantCount++;
@@ -243,6 +282,29 @@ ${queryString}`
     }
     prefixComment.comment += `; ${variantCount} variants generated from ${testsSeen.size} tests in ${filesSeen.size} files`;
   }
+
+  if (tooLongQueries.length > 0) {
+    // Try to show some representation of failures. We show one entry from each
+    // test that is different length. Without this the logger cuts off the error
+    // messages and you end up not being told about which tests have issues.
+    const queryStrings = new Map();
+    tooLongQueries.forEach((s) => {
+      const colonNdx = s.lastIndexOf(':');
+      const prefix = s.substring(0, colonNdx + 1);
+      const id = `${prefix}:${s.length}`;
+      queryStrings.set(id, s);
+    });
+    throw new Error(
+      `Generated test variant would produce too-long -actual.txt filename. Possible solutions:
+  - Reduce the length of the parts of the test query
+  - Reduce the parameterization of the test
+  - Make the test function faster
+  - Reduce the specificity of test expectations (if you're using them)
+|<${''.padEnd(kMaxQueryLength - 4, '-')}>|
+${[...queryStrings.values()].join('\n')}`
+    );
+  }
+
   await generateFile(lines);
 })().catch((ex) => {
   console.log(ex.stack ?? ex.toString());
@@ -264,13 +326,13 @@ queryFile)
   }
 
   const result = new Map();
-  for (const prefix of argumentsPrefixes) {
+  for (const { prefix } of argumentsPrefixes) {
     result.set(prefix, []);
   }
 
   expLoop: for (const exp of lines) {
     // Take each expectation for the longest prefix it matches.
-    for (const argsPrefix of argumentsPrefixes) {
+    for (const { prefix: argsPrefix } of argumentsPrefixes) {
       const prefix = queryFile.prefix + argsPrefix;
       if (exp.startsWith(prefix)) {
         result.get(argsPrefix).push(exp.substring(prefix.length));

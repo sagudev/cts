@@ -3,22 +3,24 @@
 **/export const description = `
 Execution tests for textureSampleBaseClampToEdge
 `;import { makeTestGroup } from '../../../../../../common/framework/test_group.js';
-
+import { AllFeaturesMaxLimitsGPUTest } from '../../../../../gpu_test.js';
 
 
 import {
   checkCallResults,
   createTextureWithRandomDataAndGetTexels,
-  createVideoFrameWithRandomDataAndGetTexels,
+  createCanvasWithRandomDataAndGetTexels,
   doTextureCalls,
   generateTextureBuiltinInputs2D,
   kSamplePointMethods,
+  kShortAddressModes,
+  kShortAddressModeToAddressMode,
+  kShortShaderStages } from
 
 
-  WGSLTextureSampleTest } from
 './texture_utils.js';
 
-export const g = makeTestGroup(WGSLTextureSampleTest);
+export const g = makeTestGroup(AllFeaturesMaxLimitsGPUTest);
 
 async function createTextureAndDataForTest(
 t,
@@ -30,7 +32,12 @@ isExternal)
 
 {
   if (isExternal) {
-    const { texels, videoFrame } = createVideoFrameWithRandomDataAndGetTexels(descriptor.size);
+    t.skipIf(typeof OffscreenCanvas === 'undefined', 'OffscreenCanvas is not supported');
+    const { texels, canvas } = createCanvasWithRandomDataAndGetTexels(descriptor.size);
+
+    t.skipIf(typeof VideoFrame === 'undefined', 'VideoFrames are not supported');
+    const videoFrame = new VideoFrame(canvas, { timestamp: 0 });
+
     const texture = t.device.importExternalTexture({ source: videoFrame });
     return { texels, texture, videoFrame };
   } else {
@@ -54,12 +61,13 @@ Parameters:
 ).
 params((u) =>
 u.
+combine('stage', kShortShaderStages).
 combine('textureType', ['texture_2d<f32>', 'texture_external']).
+combine('filt', ['nearest', 'linear']).
+combine('modeU', kShortAddressModes).
+combine('modeV', kShortAddressModes).
 beginSubcases().
-combine('samplePoints', kSamplePointMethods).
-combine('addressModeU', ['clamp-to-edge', 'repeat', 'mirror-repeat']).
-combine('addressModeV', ['clamp-to-edge', 'repeat', 'mirror-repeat']).
-combine('minFilter', ['nearest', 'linear'])
+combine('samplePoints', kSamplePointMethods)
 ).
 beforeAllSubcases((t) =>
 t.skipIf(
@@ -68,7 +76,7 @@ t.skipIf(
 )
 ).
 fn(async (t) => {
-  const { textureType, samplePoints, addressModeU, addressModeV, minFilter } = t.params;
+  const { textureType, stage, samplePoints, modeU, modeV, filt: minFilter } = t.params;
 
   const descriptor = {
     format: 'rgba8unorm',
@@ -85,8 +93,8 @@ fn(async (t) => {
   );
   try {
     const sampler = {
-      addressModeU,
-      addressModeV,
+      addressModeU: kShortAddressModeToAddressMode[modeU],
+      addressModeV: kShortAddressModeToAddressMode[modeV],
       minFilter,
       magFilter: minFilter,
       mipmapFilter: minFilter
@@ -96,7 +104,7 @@ fn(async (t) => {
       method: samplePoints,
       sampler,
       descriptor,
-      hashInputs: [samplePoints, addressModeU, addressModeV, minFilter]
+      hashInputs: [samplePoints, modeU, modeV, minFilter]
     }).map(({ coords }) => {
       return {
         builtin: 'textureSampleBaseClampToEdge',
@@ -105,14 +113,23 @@ fn(async (t) => {
       };
     });
     const viewDescriptor = {};
-    const results = await doTextureCalls(t, texture, viewDescriptor, textureType, sampler, calls);
+    const results = await doTextureCalls(
+      t,
+      texture,
+      viewDescriptor,
+      textureType,
+      sampler,
+      calls,
+      stage
+    );
     const res = await checkCallResults(
       t,
       { texels, descriptor, viewDescriptor },
       textureType,
       sampler,
       calls,
-      results
+      results,
+      stage
     );
     t.expectOK(res);
   } finally {

@@ -61,11 +61,8 @@ and drawIndexedIndirect it should always be 0. Once there is an extension to all
 it should be added into drawCallTestParameter list.
 `;import { makeTestGroup } from '../../../common/framework/test_group.js';
 import { assert } from '../../../common/util/util.js';
-import { GPUTest, TextureTestMixin } from '../../gpu_test.js';
-
-// This is a tolerance that should be less strict than oneULP(X) of a f32 where X is any arbitraryValues or 0.
-// Given that in GLSL compat highp float can < 32 bit.
-const kFloatTolerance = 0.000001;
+import { AllFeaturesMaxLimitsGPUTest } from '../../gpu_test.js';
+import * as ttu from '../../texture_test_utils.js';
 
 // Encapsulates a draw call (either indexed or non-indexed)
 class DrawCall {
@@ -269,19 +266,15 @@ const typeInfoMap = {
     sizeInBytes: 12,
     validationFunc: 'return valid(v.x) && valid(v.y) && valid(v.z);'
   },
-  // It is valid to return (0, 0, 0, X) for an OOB access. (X can be anything)
-  // https://gpuweb.github.io/gpuweb/#security-shader
   float32x4: {
     wgslType: 'vec4<f32>',
     sizeInBytes: 16,
     validationFunc: `return (valid(v.x) && valid(v.y) && valid(v.z) && valid(v.w)) ||
-                            (abs(v.x - 0.0) <= ${kFloatTolerance} &&
-                             abs(v.y - 0.0) <= ${kFloatTolerance} &&
-                             abs(v.z - 0.0) <= ${kFloatTolerance});`
+                            (v.x == 0.0 && v.y == 0.0 && v.z == 0.0 && (v.w == 0.0 || v.w == 1.0));`
   }
 };
 
-class F extends TextureTestMixin(GPUTest) {
+class F extends AllFeaturesMaxLimitsGPUTest {
   generateBufferContents(
   numVertices,
   attributesPerBuffer,
@@ -371,7 +364,7 @@ class F extends TextureTestMixin(GPUTest) {
       ${layoutStr}
 
       fn valid(f : f32) -> bool {
-        return ${validValues.map((v) => `abs(f - ${v}.0) <= ${kFloatTolerance}`).join(' || ')};
+        return ${validValues.map((v) => `f == ${v}.0`).join(' || ')};
       }
 
       fn validationFunc(v : ${typeInfo.wgslType}) -> bool {
@@ -522,7 +515,7 @@ class F extends TextureTestMixin(GPUTest) {
     this.device.queue.submit([encoder.finish()]);
 
     // Validate we see green on the left pixel, showing that no failure case is detected
-    this.expectSinglePixelComparisonsAreOkInTexture({ texture: colorAttachment }, [
+    ttu.expectSinglePixelComparisonsAreOkInTexture(this, { texture: colorAttachment }, [
     { coord: { x: 0, y: 0 }, exp: new Uint8Array([0x00, 0xff, 0x00, 0xff]) }]
     );
   }

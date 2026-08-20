@@ -3,14 +3,14 @@ Execution Tests for the i32 arithmetic binary expression operations
 `;
 
 import { makeTestGroup } from '../../../../../common/framework/test_group.js';
-import { GPUTest } from '../../../../gpu_test.js';
+import { AllFeaturesMaxLimitsGPUTest } from '../../../../gpu_test.js';
 import { Type } from '../../../../util/conversion.js';
 import { allInputSources, run } from '../expression.js';
 
 import { binary, compoundBinary } from './binary.js';
 import { d } from './i32_arithmetic.cache.js';
 
-export const g = makeTestGroup(GPUTest);
+export const g = makeTestGroup(AllFeaturesMaxLimitsGPUTest);
 
 g.test('addition')
   .specURL('https://www.w3.org/TR/WGSL/#floating-point-evaluation')
@@ -168,6 +168,28 @@ Expression: x %= y
       t.params.inputSource === 'const' ? 'remainder_const' : 'remainder_non_const'
     );
     await run(t, compoundBinary('%='), [Type.i32, Type.i32], Type.i32, t.params, cases);
+  });
+
+g.test('remainder_negative')
+  .specURL('https://www.w3.org/TR/WGSL/#arithmetic-expr')
+  .desc(
+    `
+Expression: x % y, with negative dividends across non-power-of-two moduli.
+
+Regression coverage for implementations that compute signed remainder as
+unsigned for negative operands (e.g. lowering to a poison-prone OpSRem without
+VK_KHR_maintenance8), which returns 255 instead of -1 for -1 % 768.
+See https://github.com/gfx-rs/wgpu/issues/8191.
+`
+  )
+  .params(u =>
+    u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4] as const)
+  )
+  .fn(async t => {
+    const cases = await d.get(
+      t.params.inputSource === 'const' ? 'remainder_negative_const' : 'remainder_negative_non_const'
+    );
+    await run(t, binary('%'), [Type.i32, Type.i32], Type.i32, t.params, cases);
   });
 
 g.test('addition_scalar_vector')

@@ -1,6 +1,7 @@
 /**
 * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
-**/import { keysOf } from '../../common/util/data_tables.js';import { assert } from '../../common/util/util.js';import { align } from '../util/math.js';
+**/import { keysOf } from '../../common/util/data_tables.js';import { assert } from '../../common/util/util.js';
+import { align } from '../util/math.js';
 
 const kDefaultArrayLength = 3;
 
@@ -106,11 +107,21 @@ export const kMatrixContainerTypeLayoutInfo =
 
 
 
+
+
+
+
+
+
+
 export const kAccessModeInfo = {
   read: { read: true, write: false },
   write: { read: false, write: true },
   read_write: { read: true, write: true }
 };
+
+
+
 
 
 
@@ -171,6 +182,14 @@ export const kAddressSpaceInfo = {
     accessModes: ['read_write'],
     spellAccessMode: 'never'
   },
+  immediate: {
+    scope: 'module',
+    binding: false,
+    spell: 'must',
+    accessModes: ['read'],
+    spellAccessMode: 'never',
+    wgslLanguageFeature: 'immediate_address_space'
+  },
   handle: {
     scope: 'module',
     binding: true,
@@ -179,26 +198,6 @@ export const kAddressSpaceInfo = {
     spellAccessMode: 'never'
   }
 };
-
-/** List of texel formats and their shader representation */
-export const TexelFormats = [
-{ format: 'rgba8unorm', _shaderType: 'f32' },
-{ format: 'rgba8snorm', _shaderType: 'f32' },
-{ format: 'rgba8uint', _shaderType: 'u32' },
-{ format: 'rgba8sint', _shaderType: 'i32' },
-{ format: 'rgba16uint', _shaderType: 'u32' },
-{ format: 'rgba16sint', _shaderType: 'i32' },
-{ format: 'rgba16float', _shaderType: 'f32' },
-{ format: 'r32uint', _shaderType: 'u32' },
-{ format: 'r32sint', _shaderType: 'i32' },
-{ format: 'r32float', _shaderType: 'f32' },
-{ format: 'rg32uint', _shaderType: 'u32' },
-{ format: 'rg32sint', _shaderType: 'i32' },
-{ format: 'rg32float', _shaderType: 'f32' },
-{ format: 'rgba32uint', _shaderType: 'u32' },
-{ format: 'rgba32sint', _shaderType: 'i32' },
-{ format: 'rgba32float', _shaderType: 'f32' }];
-
 
 /**
  * Generate a bunch types (vec, mat, sized/unsized array) for testing.
@@ -257,8 +256,10 @@ export function* generateTypes({
   }
   const scalarType = isAtomic ? `atomic<${baseType}>` : baseType;
 
-  // Storage and uniform require host-sharable types.
-  if (addressSpace === 'storage' || addressSpace === 'uniform') {
+  // Storage, uniform, and immediate require host-shareable types.
+  const requiresHostShareable =
+  addressSpace === 'storage' || addressSpace === 'uniform' || addressSpace === 'immediate';
+  if (requiresHostShareable) {
     assert(isHostSharable(baseType), 'type ' + baseType.toString() + ' is not host sharable');
   }
 
@@ -309,6 +310,9 @@ export function* generateTypes({
 
   // Array types
   if (containerType === 'array') {
+    if (addressSpace === 'immediate') {
+      return;
+    }
     let arrayElemType = scalarType;
     let arrayElementCount = kDefaultArrayLength;
     let supportsAtomics = scalarInfo.supportsAtomics;
@@ -318,6 +322,7 @@ export function* generateTypes({
     if (scalarInfo.layout) {
       // Compute the layout of the array type.
       // Adjust the array element count or element type as needed.
+      // MAINTENANCE_TODO(#4485): Remove this when all implementors support uniform_buffer_standard_layout.
       if (addressSpace === 'uniform') {
         // Use a vec4 of the scalar type, to achieve a 16 byte alignment without internal padding.
         // This works for 4-byte scalar types, and does not work for f16.
@@ -401,8 +406,11 @@ export function* supportedScalarTypes(p) {
     // Test atomics only on supported scalar types.
     if (p.isAtomic && !info.supportsAtomics) continue;
 
-    // Storage and uniform require host-sharable types.
-    const isHostShared = p.addressSpace === 'storage' || p.addressSpace === 'uniform';
+    // Storage, uniform, and immediate require host-shareable types.
+    const isHostShared =
+    p.addressSpace === 'storage' ||
+    p.addressSpace === 'uniform' ||
+    p.addressSpace === 'immediate';
     if (isHostShared && info.layout === undefined) continue;
 
     yield scalarType;

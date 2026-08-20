@@ -3,11 +3,11 @@ Testing render pipeline using overridable constants in vertex stage and fragment
 `;
 
 import { makeTestGroup } from '../../../../common/framework/test_group.js';
-import { GPUTest } from '../../../gpu_test.js';
+import { AllFeaturesMaxLimitsGPUTest } from '../../../gpu_test.js';
 import { PerTexelComponent } from '../../../util/texture/texel_data.js';
 
-class F extends GPUTest {
-  async ExpectShaderOutputWithConstants(
+class F extends AllFeaturesMaxLimitsGPUTest {
+  async expectShaderOutputWithConstants(
     isAsync: boolean,
     format: GPUTextureFormat,
     expected: PerTexelComponent<number>,
@@ -149,7 +149,7 @@ g.test('basic')
   )
   .fn(async t => {
     const format = 'bgra8unorm';
-    await t.ExpectShaderOutputWithConstants(
+    await t.expectShaderOutputWithConstants(
       t.params.isAsync,
       format,
       t.params.expected,
@@ -171,6 +171,7 @@ g.test('basic')
     );
   });
 
+const kPrecisionTestFormat = 'rgba32float';
 g.test('precision')
   .desc(`Test that the float number precision is preserved for constants`)
   .params(u =>
@@ -191,8 +192,8 @@ g.test('precision')
       ])
   )
   .fn(async t => {
-    const format = 'rgba32float';
-    await t.ExpectShaderOutputWithConstants(
+    const format = kPrecisionTestFormat;
+    await t.expectShaderOutputWithConstants(
       t.params.isAsync,
       format,
       t.params.expected,
@@ -434,7 +435,7 @@ g.test('multi_entry_points')
       }
       `,
     });
-    await t.ExpectShaderOutputWithConstants(
+    await t.expectShaderOutputWithConstants(
       t.params.isAsync,
       format,
       t.params.expected,

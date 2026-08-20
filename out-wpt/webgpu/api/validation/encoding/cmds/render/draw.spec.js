@@ -5,9 +5,13 @@ Here we test the validation for draw functions, mainly the buffer access validat
 of draw calls are tested, and test that validation errors do / don't occur for certain call type
 and parameters as expect.
 `;import { makeTestGroup } from '../../../../../../common/framework/test_group.js';
-import { kVertexFormatInfo } from '../../../../../capability_info.js';
-
-import { ValidationTest } from '../../../validation_test.js';
+import {
+  kPrimitiveTopology,
+  kIndexFormat,
+  kVertexFormatInfo } from
+'../../../../../capability_info.js';
+import { AllFeaturesMaxLimitsGPUTest } from '../../../../../gpu_test.js';
+import * as vtu from '../../../validation_test_utils.js';
 
 
 
@@ -116,14 +120,14 @@ buffers)
     layout: 'auto',
     vertex: {
       module: test.device.createShaderModule({
-        code: test.getNoOpShaderCode('VERTEX')
+        code: vtu.getNoOpShaderCode('VERTEX')
       }),
       entryPoint: 'main',
       buffers: bufferLayouts
     },
     fragment: {
       module: test.device.createShaderModule({
-        code: test.getNoOpShaderCode('FRAGMENT')
+        code: vtu.getNoOpShaderCode('FRAGMENT')
       }),
       entryPoint: 'main',
       targets: [{ format: 'rgba8unorm', writeMask: 0 }]
@@ -190,7 +194,7 @@ const kDefaultParameterForIndexedDraw = {
   indexBufferSize: 2 * 200 // exact required bound size for index buffer
 };
 
-export const g = makeTestGroup(ValidationTest);
+export const g = makeTestGroup(AllFeaturesMaxLimitsGPUTest);
 
 g.test(`unused_buffer_bound`).
 desc(
@@ -226,16 +230,16 @@ fn((t) => {
     bufferOffset,
     boundSize
   } = t.params;
-  const renderPipeline = t.createNoOpRenderPipeline();
+  const renderPipeline = vtu.createNoOpRenderPipeline(t);
   const bufferSize = bufferOffset + boundSize;
-  const smallBuffer = t.createBufferWithState('valid', {
+  const smallBuffer = vtu.createBufferWithState(t, 'valid', {
     size: bufferSize,
     usage: GPUBufferUsage.INDEX | GPUBufferUsage.VERTEX
   });
 
   // An index buffer of enough size, used if smallIndexBuffer === false
   const { indexFormat, indexBufferSize } = kDefaultParameterForIndexedDraw;
-  const indexBuffer = t.createBufferWithState('valid', {
+  const indexBuffer = vtu.createBufferWithState(t, 'valid', {
     size: indexBufferSize,
     usage: GPUBufferUsage.INDEX
   });
@@ -287,6 +291,147 @@ fn((t) => {
   }
 });
 
+g.test(`index_buffer_format`).
+desc(
+  `
+Check that pipelines with a strip topology require their stripIndexFormat to match the setIndexBuffer calls' indexFormat.
+ - Issues an indexed draw call after a setPipeline and setIndexBuffer call.
+    - For all valid (stripIndexFormat, topology) combinations.
+    - For all setIndexBuffer indexFormats.
+    - For all render encoders.
+    - For both orderings of setIndexBuffer and setPipeline.
+`
+).
+paramsSubcasesOnly((u) =>
+u.
+combine('topology', kPrimitiveTopology).
+combine('stripIndexFormat', [undefined, ...kIndexFormat]).
+filter(
+  (p) =>
+  p.topology === 'line-strip' ||
+  p.topology === 'triangle-strip' ||
+  p.stripIndexFormat === undefined
+).
+combine('indexFormat', kIndexFormat).
+combine('drawType', ['drawIndexed', 'drawIndexedIndirect'])
+).
+fn((t) => {
+  const { indexFormat, topology, stripIndexFormat, drawType } = t.params;
+
+  const pipeline = t.device.createRenderPipeline({
+    layout: 'auto',
+    vertex: {
+      module: t.device.createShaderModule({ code: vtu.getNoOpShaderCode('VERTEX') })
+    },
+    fragment: {
+      module: t.device.createShaderModule({ code: vtu.getNoOpShaderCode('FRAGMENT') }),
+      targets: [{ format: 'rgba8unorm', writeMask: 0 }]
+    },
+    primitive: {
+      topology,
+      stripIndexFormat
+    }
+  });
+  const indexBuffer = vtu.createBufferWithState(t, 'valid', {
+    size: 16,
+    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
+  });
+
+  // Make the encoders that test the validation.
+  const isStrip = topology === 'line-strip' || topology === 'triangle-strip';
+  const success = !isStrip || stripIndexFormat === indexFormat;
+
+  for (const encoderType of ['render bundle', 'render pass']) {
+    for (const setPipelineBeforeBuffer of [false, true]) {
+      const commandBufferMaker = t.createEncoder(encoderType);
+      const renderEncoder = commandBufferMaker.encoder;
+
+      if (setPipelineBeforeBuffer) {
+        renderEncoder.setPipeline(pipeline);
+      }
+      renderEncoder.setIndexBuffer(indexBuffer, indexFormat);
+      if (!setPipelineBeforeBuffer) {
+        renderEncoder.setPipeline(pipeline);
+      }
+
+      callDrawIndexed(t, renderEncoder, drawType, { indexCount: 3 });
+      commandBufferMaker.validateFinishAndSubmit(success, true);
+    }
+  }
+});
+
+g.test(`index_buffer_format_dirtying`).
+desc(
+  `
+    Check that the validation for indexFormat matching stripIndexFormat is dirtied if either the pipeline or the index buffer is changed.
+`
+).
+paramsSubcasesOnly((p) =>
+p.
+combine('dirty', ['pipeline', 'indexBuffer', 'neither']).
+combine('drawType', ['drawIndexed', 'drawIndexedIndirect'])
+).
+fn((t) => {
+  const { dirty, drawType } = t.params;
+
+  // Create render pipelines with both stripIndexFormats.
+  const makeStripIndexPipeline = (
+  topology,
+  stripIndexFormat) =>
+  {
+    return t.device.createRenderPipeline({
+      layout: 'auto',
+      vertex: {
+        module: t.device.createShaderModule({ code: vtu.getNoOpShaderCode('VERTEX') })
+      },
+      fragment: {
+        module: t.device.createShaderModule({ code: vtu.getNoOpShaderCode('FRAGMENT') }),
+        targets: [{ format: 'rgba8unorm', writeMask: 0 }]
+      },
+      primitive: {
+        topology,
+        stripIndexFormat
+      }
+    });
+  };
+
+  const pipelineUint32 = makeStripIndexPipeline('triangle-strip', 'uint32');
+  const pipelineUint16 = makeStripIndexPipeline('triangle-strip', 'uint16');
+
+  const indexBuffer = vtu.createBufferWithState(t, 'valid', {
+    size: 16,
+    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
+  });
+
+  // Make the encoders that test the validation.
+  const success = dirty === 'neither';
+
+  for (const encoderType of ['render bundle', 'render pass']) {
+    const commandBufferMaker = t.createEncoder(encoderType);
+    const renderEncoder = commandBufferMaker.encoder;
+
+    // First draw that's valid (checked with 'dirty': 'neither').
+    renderEncoder.setPipeline(pipelineUint32);
+    renderEncoder.setIndexBuffer(indexBuffer, 'uint32');
+    callDrawIndexed(t, renderEncoder, drawType, { indexCount: 3 });
+
+    // Dirty the pipeline or the buffer such that the validation should fail.
+    switch (dirty) {
+      case 'pipeline':
+        renderEncoder.setPipeline(pipelineUint16);
+        break;
+      case 'indexBuffer':
+        renderEncoder.setIndexBuffer(indexBuffer, 'uint16');
+        break;
+      case 'neither':
+        break;
+    }
+
+    callDrawIndexed(t, renderEncoder, drawType, { indexCount: 3 });
+    commandBufferMaker.validateFinishAndSubmit(success, true);
+  }
+});
+
 g.test(`index_buffer_OOB`).
 desc(
   `
@@ -320,7 +465,7 @@ fn((t) => {
     size: bufferSize,
     usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
   };
-  const indexBuffer = t.createBufferWithState('valid', desc);
+  const indexBuffer = vtu.createBufferWithState(t, 'valid', desc);
 
   const drawCallParam = {
     indexCount: drawIndexCount
@@ -331,7 +476,7 @@ fn((t) => {
   const isFinishSuccess =
   drawIndexCount <= bindingSizeInElements || drawType === 'drawIndexedIndirect';
 
-  const renderPipeline = t.createNoOpRenderPipeline();
+  const renderPipeline = vtu.createNoOpRenderPipeline(t);
 
   for (const encoderType of ['render bundle', 'render pass']) {
     for (const setPipelineBeforeBuffer of [false, true]) {
@@ -514,11 +659,11 @@ fn((t) => {
   );
   const instanceBufferSize = setBufferOffset + setInstanceBufferSize;
 
-  const vertexBuffer = t.createBufferWithState('valid', {
+  const vertexBuffer = vtu.createBufferWithState(t, 'valid', {
     size: vertexBufferSize,
     usage: GPUBufferUsage.VERTEX
   });
-  const instanceBuffer = t.createBufferWithState('valid', {
+  const instanceBuffer = vtu.createBufferWithState(t, 'valid', {
     size: instanceBufferSize,
     usage: GPUBufferUsage.VERTEX
   });
@@ -561,7 +706,7 @@ fn((t) => {
           size: indexBufferSize,
           usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
         };
-        const indexBuffer = t.createBufferWithState('valid', desc);
+        const indexBuffer = vtu.createBufferWithState(t, 'valid', desc);
 
         const drawParam = {
           indexCount,
@@ -679,7 +824,7 @@ fn((t) => {
   requiredBufferSize = Math.max(requiredBufferSize, setIndexBufferOffset + setIndexBufferSize);
 
   // Create the shared GPU buffer with both vertetx and index usage
-  const sharedBuffer = t.createBufferWithState('valid', {
+  const sharedBuffer = vtu.createBufferWithState(t, 'valid', {
     size: requiredBufferSize,
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.INDEX
   });

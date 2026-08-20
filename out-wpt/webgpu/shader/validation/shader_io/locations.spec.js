@@ -94,7 +94,9 @@ const kInvalidLocationTypes = new Set([
 'texture_depth_cube_array',
 'texture_depth_multisampled_2d',
 'sampler',
-'sampler_comparison']
+'sampler_comparison',
+'buffer',
+'buffer<16>']
 );
 
 g.test('stage_inout').
@@ -131,15 +133,6 @@ combine('use_struct', [true, false]).
 combine('type', new Set([...kValidLocationTypes, ...kInvalidLocationTypes])).
 beginSubcases()
 ).
-beforeAllSubcases((t) => {
-  if (
-  t.params.type === 'f16' ||
-  (t.params.type.startsWith('mat') || t.params.type.startsWith('vec')) &&
-  t.params.type.endsWith('h'))
-  {
-    t.selectDeviceOrSkipTestCase('shader-f16');
-  }
-}).
 fn((t) => {
   let code = '';
 
@@ -371,9 +364,6 @@ override y = 8;
 g.test('location_fp16').
 desc(`Test validation of location with fp16`).
 params((u) => u.combine('ext', ['', 'h'])).
-beforeAllSubcases((t) => {
-  t.selectDeviceOrSkipTestCase('shader-f16');
-}).
 fn((t) => {
   const code = `
 

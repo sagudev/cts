@@ -4,7 +4,7 @@ Texture Usages Validation Tests in Same or Different Render Pass Encoders.
 
 import { makeTestGroup } from '../../../../../common/framework/test_group.js';
 import { assert, unreachable } from '../../../../../common/util/util.js';
-import { ValidationTest } from '../../validation_test.js';
+import { AllFeaturesMaxLimitsGPUTest } from '../../../../gpu_test.js';
 
 export type TextureBindingType =
   | 'sampled-texture'
@@ -17,11 +17,11 @@ export const kTextureBindingTypes = [
   'readonly-storage-texture',
   'readwrite-storage-texture',
 ] as const;
-export function IsReadOnlyTextureBindingType(t: TextureBindingType): boolean {
+export function isReadOnlyTextureBindingType(t: TextureBindingType): boolean {
   return t === 'sampled-texture' || t === 'readonly-storage-texture';
 }
 
-class F extends ValidationTest {
+class F extends AllFeaturesMaxLimitsGPUTest {
   getColorAttachment(
     texture: GPUTexture,
     textureViewDescriptor?: GPUTextureViewDescriptor
@@ -206,6 +206,13 @@ g.test('subresources,color_attachment_and_bind_group')
       bgUsage,
       inSamePass,
     } = t.params;
+
+    t.skipIf(
+      t.isCompatibility &&
+        bgUsage !== 'sampled-texture' &&
+        !(t.device.limits.maxStorageTexturesInFragmentStage! >= 1),
+      `maxStorageTexturesInFragmentStage(${t.device.limits.maxStorageTexturesInFragmentStage}) < 1`
+    );
 
     const texture = t.createTextureTracked({
       format: 'r32float',
@@ -469,6 +476,13 @@ g.test('subresources,multiple_bind_groups')
   .fn(t => {
     const { bg0Levels, bg0Layers, bg1Levels, bg1Layers, bgUsage0, bgUsage1, inSamePass } = t.params;
 
+    t.skipIf(
+      t.isCompatibility &&
+        (bgUsage0 !== 'sampled-texture' || bgUsage1 !== 'sampled-texture') &&
+        !(t.device.limits.maxStorageTexturesInFragmentStage! >= 2),
+      `maxStorageTexturesInFragmentStage(${t.device.limits.maxStorageTexturesInFragmentStage}) < 2`
+    );
+
     const texture = t.createTextureTracked({
       format: 'r32float',
       usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
@@ -519,7 +533,7 @@ g.test('subresources,multiple_bind_groups')
     }
 
     const bothReadOnly =
-      IsReadOnlyTextureBindingType(bgUsage0) && IsReadOnlyTextureBindingType(bgUsage1);
+      isReadOnlyTextureBindingType(bgUsage0) && isReadOnlyTextureBindingType(bgUsage1);
     const isMipLevelNotOverlapped = t.isRangeNotOverlapped(
       bg0Levels.base,
       bg0Levels.base + bg0Levels.count - 1,
