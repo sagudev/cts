@@ -546,13 +546,14 @@ params((u) => u.combine('entry1', BINDINGS_OF_TYPES).combine('entry2', BINDINGS_
 fn((t) => {
   const { entry1, entry2 } = t.params;
 
-  const success =
-  Object.keys(entry1).length === 1 && Object.keys(entry2).length === 0 ||
-  Object.keys(entry1).length === 0 && Object.keys(entry2).length === 1;
+  const joined = { ...entry1, ...entry2 };
 
-  t.expectValidationError(() => {
-    t.device.createBindGroupLayout({
-      entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, ...entry1, ...entry2 }]
-    });
-  }, !success);
+  t.expectValidationError(
+    () => {
+      t.device.createBindGroupLayout({
+        entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, ...joined }]
+      });
+    },
+    !(Object.keys(joined).length === 1)
+  );
 });
