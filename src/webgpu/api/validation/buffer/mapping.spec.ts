@@ -175,6 +175,7 @@ g.test('mapAsync,destroyedDevice')
       buffer,
       GPUMapMode.READ
     );
+    buffer.unmap();
     t.device.destroy();
     if (awaitLost) {
       const lostInfo = await t.device.lost;
