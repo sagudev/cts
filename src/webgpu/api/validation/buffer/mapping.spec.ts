@@ -165,7 +165,8 @@ g.test('mapAsync,destroyedDevice')
   )
   .fn(async t => {
     const { awaitLost, bufferState } = t.params;
-    const buffer = vtu.createBufferWithState(t, bufferState);
+    const buffer =
+      bufferState === 'valid' ? t.createMappableBuffer(GPUMapMode.READ, 4) : vtu.getErrorBuffer(t);
     t.expectDeviceLost('destroyed');
 
     await t.testMapAsyncCall(
