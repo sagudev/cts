@@ -5,7 +5,7 @@ Tests for device lost induced via destroy.
   - Tests that prior to device destruction, valid APIs do not generate errors (control case).
   - After device destruction, runs the same APIs. No expected observable results, so test crash or future failures are the only current failure indicators.
 `;import { makeTestGroup } from '../../../../../common/framework/test_group.js';
-import { assert } from '../../../../../common/util/util.js';
+import { assert, unreachable } from '../../../../../common/util/util.js';
 import {
   allBindingEntries,
   bindingTypeInfo,
@@ -104,6 +104,64 @@ class DeviceDestroyTests extends AllFeaturesMaxLimitsGPUTest {
         }
     }
   }
+
+  async testMapAsyncCall(
+  expectation,
+
+
+  buffer,
+  mode,
+  offset,
+  size)
+  {
+    if (expectation === 'success') {
+      const p = buffer.mapAsync(mode, offset, size);
+      await p;
+    } else {
+      let p;
+      this.expectValidationError(() => {
+        p = buffer.mapAsync(mode, offset, size);
+      }, expectation.validationError);
+
+      let caught = false;
+      let rejectedEarly = false;
+      let microtaskBRan = false;
+      // If mapAsync rejected early, microtask A will run before B.
+      // If not, B will run before A.
+      p.catch(() => {
+        // Microtask A
+        caught = true;
+      });
+      queueMicrotask(() => {
+        // Microtask B
+        rejectedEarly = caught;
+        microtaskBRan = true;
+      });
+
+      // These handlers should always run after microtasks A and B are both done.
+      await p.then(
+        () => {
+          unreachable('mapAsync unexpectedly passed');
+        },
+        (ex) => {
+          const suffix = `\n  Rejection: ${ex}`;
+
+          this.expect(microtaskBRan, 'scheduling problem?: microtaskB has not run yet' + suffix);
+          assert(ex instanceof Error, 'mapAsync rejected with non-error' + suffix);
+          this.expect(typeof ex.stack === 'string', 'mapAsync rejected without a stack' + suffix);
+          this.expect(
+            expectation.rejectName === ex.name,
+            'mapAsync rejected with wrong exception name' + suffix
+          );
+          if (expectation.earlyRejection) {
+            this.expect(rejectedEarly, 'expected early mapAsync rejection, got deferred' + suffix);
+          } else {
+            this.expect(!rejectedEarly, 'expected deferred mapAsync rejection, got early' + suffix);
+          }
+        }
+      );
+    }
+  }
 }
 
 export const g = makeTestGroup(DeviceDestroyTests);
@@ -144,6 +202,27 @@ fn(async (t) => {
       usage: kBufferUsageInfo[usageType] | kBufferUsageCopyInfo[usageCopy],
       mappedAtCreation
     });
+  }, awaitLost);
+});
+
+g.test('buffer,mapAsync').
+desc(
+  `
+Tests mapAsync on destroyed device.
+  `
+).
+params((u) =>
+u.combine('bufferState', ['valid', 'invalid']).combine('awaitLost', [true, false])
+).
+fn(async (t) => {
+  const { awaitLost, bufferState } = t.params;
+  const buffer = vtu.createBufferWithState(t, bufferState);
+  await t.executeAfterDestroy(async () => {
+    await t.testMapAsyncCall(
+      { validationError: false, earlyRejection: false, rejectName: 'AbortError' },
+      buffer,
+      GPUMapMode.READ
+    );
   }, awaitLost);
 });
 
