@@ -168,7 +168,7 @@ fn(async (t) => {
   const buffer = vtu.createBufferWithState(t, bufferState);
   t.expectDeviceLost('destroyed');
 
-  const t1 = t.testMapAsyncCall(
+  await t.testMapAsyncCall(
     bufferState === 'valid' ?
     'success' :
     { validationError: true, earlyRejection: false, rejectName: 'OperationError' },
@@ -180,12 +180,11 @@ fn(async (t) => {
     const lostInfo = await t.device.lost;
     t.expect(lostInfo.reason === 'destroyed');
   }
-  const t2 = t.testMapAsyncCall(
+  await t.testMapAsyncCall(
     { validationError: false, earlyRejection: false, rejectName: 'AbortError' },
     buffer,
     GPUMapMode.READ
   );
-  await Promise.all([t1, t2]);
 });
 
 g.test('mapAsync,state,destroyed').
