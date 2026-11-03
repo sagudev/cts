@@ -1451,6 +1451,7 @@
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,bufferArrayView:write_layout:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,bufferArrayView:read:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,bufferArrayView:write:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,bufferArrayView:mixed_types_aliasing:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,bufferLength:sized_buffer:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,bufferLength:unsized_buffer:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,bufferLength:max_size_buffer:*'>
@@ -1460,6 +1461,7 @@
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,bufferView:write_layout:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,bufferView:read:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,bufferView:write:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,bufferView:mixed_types_aliasing:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,ceil:abstract_float:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,ceil:f32:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,ceil:f16:*'>
@@ -1863,6 +1865,7 @@
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleLevel:sampled_1d_coords:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleLevel:sampled_2d_coords:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleLevel:sampled_2d_coords,lodClamp:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleLevel:sampled_2d_coords,compressed_unaligned:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleLevel:sampled_array_2d_coords:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleLevel:sampled_3d_coords:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,textureSampleLevel:sampled_3d_coords,lodClamp:*'>
@@ -1894,6 +1897,14 @@
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,workgroupBarrier:stage:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,workgroupBarrier:barrier:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,builtin,workgroupUniformLoad:types:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,user,ptr_aliasing:two_pointers:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,user,ptr_aliasing:two_pointers_dynamic_index:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,user,ptr_aliasing:composite_and_element:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,user,ptr_aliasing:composite_copy:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,user,ptr_aliasing:one_pointer_one_module_scope:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,user,ptr_aliasing:two_atomic_pointers:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,user,ptr_aliasing:loop_carried_dependence:*'>
+<meta name=variant content='?q=webgpu:shader,execution,expression,call,user,ptr_aliasing:buffer_view_mixed_types:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,user,ptr_params:read_full_object:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,user,ptr_params:read_ptr_to_member:*'>
 <meta name=variant content='?q=webgpu:shader,execution,expression,call,user,ptr_params:read_ptr_to_element:*'>
@@ -2938,6 +2949,7 @@
 <meta name=variant content='?q=webgpu:shader,validation,functions,alias_analysis:two_atomic_pointers_to_struct_members:*'>
 <meta name=variant content='?q=webgpu:shader,validation,functions,alias_analysis:one_atomic_pointer_one_module_scope:*'>
 <meta name=variant content='?q=webgpu:shader,validation,functions,alias_analysis:workgroup_uniform_load:*'>
+<meta name=variant content='?q=webgpu:shader,validation,functions,alias_analysis:requires_unrestricted_aliasing:*'>
 <meta name=variant content='?q=webgpu:shader,validation,functions,restrictions:vertex_returns_position:*'>
 <meta name=variant content='?q=webgpu:shader,validation,functions,restrictions:entry_point_call_target:*'>
 <meta name=variant content='?q=webgpu:shader,validation,functions,restrictions:function_return_types:*'>
@@ -3286,6 +3298,7 @@
 <meta name=variant content='?q=webgpu:web_platform,canvas,readbackFromWebGPUCanvas:transferToImageBitmap_zero_size:*'>
 <meta name=variant content='?q=webgpu:web_platform,canvas,readbackFromWebGPUCanvas:transferToImageBitmap_huge_size:*'>
 <meta name=variant content='?q=webgpu:web_platform,copyToTexture,ImageBitmap:from_ImageData:*'>
+<meta name=variant content='?q=webgpu:web_platform,copyToTexture,ImageBitmap:from_fully_transparent_ImageData:*'>
 <meta name=variant content='?q=webgpu:web_platform,copyToTexture,ImageBitmap:from_canvas:*'>
 <meta name=variant content='?q=webgpu:web_platform,copyToTexture,ImageBitmap:copy_subrect_from_ImageData:*'>
 <meta name=variant content='?q=webgpu:web_platform,copyToTexture,ImageBitmap:copy_subrect_from_2D_Canvas:*'>

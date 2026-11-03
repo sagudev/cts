@@ -12,7 +12,7 @@ textures.
 import { makeTestGroup } from '../../../../../common/framework/test_group.js';
 import { raceWithRejectOnTimeout, unreachable, assert } from '../../../../../common/util/util.js';
 import { kTextureUsages } from '../../../../capability_info.js';
-import { GPUConst } from '../../../../constants.js';
+import { GPUConst, kMaxUnsignedLongValue } from '../../../../constants.js';
 import {
   kAllTextureFormats,
   isTextureFormatUsableWithCopyExternalImageToTexture } from
@@ -31,6 +31,11 @@ const kDefaultWidth = 32;
 const kDefaultHeight = 32;
 const kDefaultDepth = 1;
 const kDefaultMipLevelCount = 6;
+const kMaxCopySizeSubcases = [
+{ width: kMaxUnsignedLongValue, height: 1, depthOrArrayLayers: 1 },
+{ width: 1, height: kMaxUnsignedLongValue, depthOrArrayLayers: 1 },
+{ width: 1, height: 1, depthOrArrayLayers: kMaxUnsignedLongValue }];
+
 
 function computeMipMapSize(width, height, mipLevel) {
   return {
@@ -51,7 +56,11 @@ function computeMipMapSize(width, height, mipLevel) {
 function generateCopySizeForSrcOOB({ srcOrigin }) {
   // OOB origin fails even with no-op copy.
   if (srcOrigin.x > kDefaultWidth || srcOrigin.y > kDefaultHeight) {
-    return [{ width: 0, height: 0, depthOrArrayLayers: 0 }];
+    return [
+    { width: 0, height: 0, depthOrArrayLayers: 0 },
+    { width: 1, height: 1, depthOrArrayLayers: 1 },
+    ...kMaxCopySizeSubcases];
+
   }
 
   const justFitCopySize = {
@@ -76,8 +85,9 @@ function generateCopySizeForSrcOOB({ srcOrigin }) {
     width: justFitCopySize.width,
     height: justFitCopySize.height,
     depthOrArrayLayers: justFitCopySize.depthOrArrayLayers + 1
-  } // OOB in depthOrArrayLayers
-  ];
+  }, // OOB in depthOrArrayLayers
+  ...kMaxCopySizeSubcases];
+
 }
 
 // Helper function to generate dst origin value based on mipLevel.
@@ -717,7 +727,9 @@ combine('srcOrigin', [
 { x: 0, y: kDefaultHeight - 1 }, // y is near the border
 { x: kDefaultWidth, y: kDefaultHeight }, // origin is on bottom-right
 { x: kDefaultWidth + 1, y: 0 }, // x is too large
-{ x: 0, y: kDefaultHeight + 1 } // y is too large
+{ x: 0, y: kDefaultHeight + 1 }, // y is too large
+{ x: kMaxUnsignedLongValue, y: 0 }, // x is the maximum unsigned long
+{ x: 0, y: kMaxUnsignedLongValue } // y is the maximum unsigned long
 ]).
 expand('copySize', generateCopySizeForSrcOOB)
 ).
