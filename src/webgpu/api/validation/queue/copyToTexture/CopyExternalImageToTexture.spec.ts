@@ -821,7 +821,7 @@ g.test('OOB,destination')
       copySize.depthOrArrayLayers > 1 ||
       copySize.width > kDefaultWidth + 1 ||
       copySize.height > kDefaultHeight + 1
-    )
+    ) {
       hasOperationError = true;
     }
 
