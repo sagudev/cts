@@ -104,6 +104,9 @@ function generateDstOriginValue({ mipLevel }: WithMipLevel) {
     { x: origin.mipWidth + 1, y: 0, z: 0 },
     { x: 0, y: origin.mipHeight + 1, z: 0 },
     { x: 0, y: 0, z: kDefaultDepth + 1 },
+    { x: kMaxUnsignedLongValue, y: 0, z: 0 },
+    { x: 0, y: kMaxUnsignedLongValue, z: 0 },
+    { x: 0, y: 0, z: kMaxUnsignedLongValue },
   ];
 }
 
@@ -117,7 +120,11 @@ function generateCopySizeForDstOOB({ mipLevel, dstOrigin }: WithDstOriginMipLeve
     dstOrigin.y > dstMipMapSize.mipHeight ||
     dstOrigin.z > kDefaultDepth
   ) {
-    return [{ width: 0, height: 0, depthOrArrayLayers: 0 }];
+    return [
+      { width: 0, height: 0, depthOrArrayLayers: 0 },
+      { width: 1, height: 1, depthOrArrayLayers: 1 },
+      ...kMaxCopySizeSubcases,
+    ];
   }
 
   const justFitCopySize = {
